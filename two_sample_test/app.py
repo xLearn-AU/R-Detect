@@ -1,11 +1,10 @@
 import gradio as gr
-from two_sample_tester import TwoSampleTester
+from relative_tester import RelativeTester
 
-# Initialize the TwoSampleTester class, which will load the model, tokenizer, and other necessary components
-tester = TwoSampleTester()
+tester = RelativeTester()
 
 
-def detect_function(input_text, intensity):
+def detect_function(input_text):
     return tester.test(input_text)
 
 
