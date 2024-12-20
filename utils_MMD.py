@@ -33,6 +33,7 @@ is_cuda = True
 # 		fealant = self.latent(input)
 # 		return fealant
 
+
 def get_item(x, is_cuda):
     """get the numpy value from a torch tensor."""
     if is_cuda:
@@ -50,9 +51,9 @@ def MatConvert(x, device, dtype):
 
 def Pdist2(x, y):
     """compute the paired distance between x and y."""
-    x_norm = (x ** 2).sum(1).view(-1, 1)
+    x_norm = (x**2).sum(1).view(-1, 1)
     if y is not None:
-        y_norm = (y ** 2).sum(1).view(1, -1)
+        y_norm = (y**2).sum(1).view(1, -1)
     else:
         y = x
         y_norm = x_norm.view(1, -1)
@@ -61,8 +62,17 @@ def Pdist2(x, y):
     return Pdist
 
 
-def h1_mean_var_gram(Kx, Ky, Kxy, is_var_computed, use_1sample_U=True, is_unbiased=True, coeff_xy=2, is_yy_zero=False,
-                     is_xx_zero=False):
+def h1_mean_var_gram(
+    Kx,
+    Ky,
+    Kxy,
+    is_var_computed,
+    use_1sample_U=True,
+    is_unbiased=True,
+    coeff_xy=2,
+    is_yy_zero=False,
+    is_xx_zero=False,
+):
     """compute value of MMD and std of MMD using kernel matrix."""
     if not is_yy_zero:
         coeff_yy = 1
@@ -83,7 +93,9 @@ def h1_mean_var_gram(Kx, Ky, Kxy, is_var_computed, use_1sample_U=True, is_unbias
         yy = torch.div((torch.sum(Ky) - torch.sum(torch.diag(Ky))), (ny * (ny - 1)))
         # one-sample U-statistic.
         if use_1sample_U:
-            xy = torch.div((torch.sum(Kxy) - torch.sum(torch.diag(Kxy))), (nx * (ny - 1)))
+            xy = torch.div(
+                (torch.sum(Kxy) - torch.sum(torch.diag(Kxy))), (nx * (ny - 1))
+            )
         else:
             xy = torch.div(torch.sum(Kxy), (nx * ny))
         mmd2 = xx * coeff_xx - coeff_xy * xy + yy * coeff_yy
@@ -101,16 +113,29 @@ def h1_mean_var_gram(Kx, Ky, Kxy, is_var_computed, use_1sample_U=True, is_unbias
     hh = Kx * coeff_xx + Ky * coeff_yy - (Kxy + Kxy.transpose(0, 1)) * coeff_xy / 2
     V1 = torch.dot(hh.sum(1) / ny, hh.sum(1) / ny) / ny
     V2 = (hh).sum() / (nx) / nx
-    varEst = 4 * (V1 - V2 ** 2)
+    varEst = 4 * (V1 - V2**2)
     if varEst == 0.0:
-        print('error_var!!' + str(V1))
+        print("error_var!!" + str(V1))
     return mmd2, varEst, Kxyxy
 
     """compute value of deep-kernel MMD and std of deep-kernel MMD using merged data."""
 
 
-def MMDu(Fea, len_s, Fea_org, sigma, sigma0=0.1, epsilon=10 ** (-10), is_smooth=True, is_var_computed=True,
-         use_1sample_U=True, is_unbiased=True, coeff_xy=2, is_yy_zero=False, is_xx_zero=False):
+def MMDu(
+    Fea,
+    len_s,
+    Fea_org,
+    sigma,
+    sigma0=0.1,
+    epsilon=10 ** (-10),
+    is_smooth=True,
+    is_var_computed=True,
+    use_1sample_U=True,
+    is_unbiased=True,
+    coeff_xy=2,
+    is_yy_zero=False,
+    is_xx_zero=False,
+):
     X = Fea[0:len_s, :]  # fetch the sample 1 (features of deep networks)
     Y = Fea[len_s:, :]  # fetch the sample 2 (features of deep networks)
     X_org = Fea_org[0:len_s, :]  # fetch the original sample 1
@@ -128,9 +153,15 @@ def MMDu(Fea, len_s, Fea_org, sigma, sigma0=0.1, epsilon=10 ** (-10), is_smooth=
     K_Ix = torch.eye(nx).cuda()
     K_Iy = torch.eye(ny).cuda()
     if is_smooth:
-        Kx = (1 - epsilon) * torch.exp(-(Dxx / sigma0) ** L - Dxx_org / sigma) + epsilon * torch.exp(-Dxx_org / sigma)
-        Ky = (1 - epsilon) * torch.exp(-(Dyy / sigma0) ** L - Dyy_org / sigma) + epsilon * torch.exp(-Dyy_org / sigma)
-        Kxy = (1 - epsilon) * torch.exp(-(Dxy / sigma0) ** L - Dxy_org / sigma) + epsilon * torch.exp(-Dxy_org / sigma)
+        Kx = (1 - epsilon) * torch.exp(
+            -((Dxx / sigma0) ** L) - Dxx_org / sigma
+        ) + epsilon * torch.exp(-Dxx_org / sigma)
+        Ky = (1 - epsilon) * torch.exp(
+            -((Dyy / sigma0) ** L) - Dyy_org / sigma
+        ) + epsilon * torch.exp(-Dyy_org / sigma)
+        Kxy = (1 - epsilon) * torch.exp(
+            -((Dxy / sigma0) ** L) - Dxy_org / sigma
+        ) + epsilon * torch.exp(-Dxy_org / sigma)
     # Kx = (1-epsilon) * (-(Dxx / sigma0)**L -Dxx_org / sigma) + epsilon * (-Dxx_org / sigma)
     # Ky = (1-epsilon) * (-(Dyy / sigma0)**L -Dyy_org / sigma) + epsilon * (-Dyy_org / sigma)
     # Kxy = (1-epsilon) * (-(Dxy / sigma0)**L -Dxy_org / sigma) + epsilon * (-Dxy_org / sigma)
@@ -139,7 +170,17 @@ def MMDu(Fea, len_s, Fea_org, sigma, sigma0=0.1, epsilon=10 ** (-10), is_smooth=
         Ky = torch.exp(-Dyy / sigma0)
         Kxy = torch.exp(-Dxy / sigma0)
 
-    return h1_mean_var_gram(Kx, Ky, Kxy, is_var_computed, use_1sample_U, is_unbiased, coeff_xy, is_yy_zero, is_xx_zero)
+    return h1_mean_var_gram(
+        Kx,
+        Ky,
+        Kxy,
+        is_var_computed,
+        use_1sample_U,
+        is_unbiased,
+        coeff_xy,
+        is_yy_zero,
+        is_xx_zero,
+    )
 
 
 def MMDu_L2(Fea, len_s):
@@ -153,22 +194,47 @@ def MMDu_L2(Fea, len_s):
     return torch.mean(Dxx), torch.mean(Dyy), torch.mean(Dxy)
 
 
-def MMD_batch(Fea, len_s, Fea_org, sigma, sigma0=0.1, epsilon=10 ** (-10), is_smooth=True, is_var_computed=True,
-              use_1sample_U=True):
+def MMD_batch(
+    Fea,
+    len_s,
+    Fea_org,
+    sigma,
+    sigma0=0.1,
+    epsilon=10 ** (-10),
+    is_smooth=True,
+    is_var_computed=True,
+    use_1sample_U=True,
+):
     X = Fea_org[0:len_s, :]
     Y = Fea_org[len_s:, :]
     X_fea = Fea[0:len_s, :]
     Y_fea = Fea[len_s:, :]
     dis_vector = torch.zeros((Y.shape[0]), device=Fea.device)
     for i in range(Y.shape[0]):
-        dis_vector[i] = \
-        MMDu(torch.cat((X_fea, Y_fea[[i]]), dim=0), len_s, torch.cat((X, Y[[i]]), dim=0).view(len_s + 1, -1), sigma,
-             sigma0, epsilon, is_unbiased=False)[0]
+        dis_vector[i] = MMDu(
+            torch.cat((X_fea, Y_fea[[i]]), dim=0),
+            len_s,
+            torch.cat((X, Y[[i]]), dim=0).view(len_s + 1, -1),
+            sigma,
+            sigma0,
+            epsilon,
+            is_unbiased=False,
+        )[0]
     return dis_vector
 
 
-def MMD_batch2(Fea, len_s, Fea_org, sigma, sigma0=0.1, epsilon=10 ** (-10), is_smooth=True, is_var_computed=True,
-               use_1sample_U=True, coeff_xy=2):
+def MMD_batch2(
+    Fea,
+    len_s,
+    Fea_org,
+    sigma,
+    sigma0=0.1,
+    epsilon=10 ** (-10),
+    is_smooth=True,
+    is_var_computed=True,
+    use_1sample_U=True,
+    coeff_xy=2,
+):
     X = Fea[0:len_s, :]  # 400,300
     Y = Fea[len_s:, :]  # 2000,300
     if is_smooth:
@@ -191,12 +257,21 @@ def MMD_batch2(Fea, len_s, Fea_org, sigma, sigma0=0.1, epsilon=10 ** (-10), is_s
     # K_Iy = torch.eye(ny).cuda()
 
     if is_smooth:
-        Kx = (1 - epsilon) * torch.exp(-(Dxx / sigma0) ** L - Dxx_org / sigma) + epsilon * torch.exp(
-            -Dxx_org / sigma)  # 400,400
-        Ky = (1 - epsilon) * torch.exp(-(Dyy / sigma0) ** L - Dyy_org / sigma) + epsilon * torch.exp(
-            -Dyy_org / sigma)  # 2000,1 value 1
-        Kxy = (1 - epsilon) * torch.exp(-(Dxy / sigma0) ** L - Dxy_org / sigma) + epsilon * torch.exp(
-            -Dxy_org / sigma)  # 400,2000
+        Kx = (1 - epsilon) * torch.exp(
+            -((Dxx / sigma0) ** L) - Dxx_org / sigma
+        ) + epsilon * torch.exp(
+            -Dxx_org / sigma
+        )  # 400,400
+        Ky = (1 - epsilon) * torch.exp(
+            -((Dyy / sigma0) ** L) - Dyy_org / sigma
+        ) + epsilon * torch.exp(
+            -Dyy_org / sigma
+        )  # 2000,1 value 1
+        Kxy = (1 - epsilon) * torch.exp(
+            -((Dxy / sigma0) ** L) - Dxy_org / sigma
+        ) + epsilon * torch.exp(
+            -Dxy_org / sigma
+        )  # 400,2000
     else:
         Kx = torch.exp(-Dxx / sigma0)
         Ky = torch.exp(-Dyy / sigma0)
@@ -368,6 +443,7 @@ def MMD_batch2(Fea, len_s, Fea_org, sigma, sigma0=0.1, epsilon=10 ** (-10), is_s
 # 		threshold = S_mmd_vector[np.int(np.ceil(N_per * (1 - alpha)))]
 # 	return h, threshold, mmd_value.item()
 
+
 def TST_MMD_u_old(Fea, N_per, N1, Fea_org, sigma, sigma0, ep, alpha, is_smooth=True):
     """run two-sample test (TST) using deep kernel kernel."""
     mmd_vector = np.zeros(N_per)
@@ -406,9 +482,30 @@ def TST_MMD_u_old(Fea, N_per, N1, Fea_org, sigma, sigma0, ep, alpha, is_smooth=T
     return h, threshold, mmd_value.item()
 
 
-def TST_MMD_u(Fea, N_per, N1, Fea_org, sigma, sigma0, epsilon, alpha, is_smooth=True, is_yy_zero=False):
+def TST_MMD_u(
+    Fea,
+    N_per,
+    N1,
+    Fea_org,
+    sigma,
+    sigma0,
+    epsilon,
+    alpha,
+    is_smooth=True,
+    is_yy_zero=False,
+):
     """run two-sample test (TST) using deep kernel kernel."""
-    TEMP = MMDu(Fea, N1, Fea_org, sigma, sigma0, epsilon, is_smooth, is_var_computed=False, is_yy_zero=is_yy_zero)
+    TEMP = MMDu(
+        Fea,
+        N1,
+        Fea_org,
+        sigma,
+        sigma0,
+        epsilon,
+        is_smooth,
+        is_var_computed=False,
+        is_yy_zero=is_yy_zero,
+    )
     Kxyxy = TEMP[2]
     count = 0
     nxy = Fea.shape[0]
@@ -480,7 +577,10 @@ def TST_C2ST_L(pred_C2ST, N_per, N1, alpha):
     # f = torch.nn.Softmax()
     # output = f(model_C2ST(S).mm(w_C2ST) + b_C2ST)
     # pred_C2ST = output.max(1, keepdim=True)[1]
-    STAT = abs(pred_C2ST[:N1, 1].type(torch.FloatTensor).mean() - pred_C2ST[N1:, 1].type(torch.FloatTensor).mean())
+    STAT = abs(
+        pred_C2ST[:N1, 1].type(torch.FloatTensor).mean()
+        - pred_C2ST[N1:, 1].type(torch.FloatTensor).mean()
+    )
     STAT_vector = np.zeros(N_per)
 
     # ind = np.random.choice(N, (N_per, N), replace=False) # error and use the following three lines
@@ -500,7 +600,9 @@ def TST_C2ST_L(pred_C2ST, N_per, N1, alpha):
         ind_Y = ind[N1:]
         # print(indx)
         STAT_vector[r] = abs(
-            pred_C2ST[ind_X, 1].type(torch.FloatTensor).mean() - pred_C2ST[ind_Y, 1].type(torch.FloatTensor).mean())
+            pred_C2ST[ind_X, 1].type(torch.FloatTensor).mean()
+            - pred_C2ST[ind_Y, 1].type(torch.FloatTensor).mean()
+        )
 
     S_vector = np.sort(STAT_vector)
     threshold = S_vector[np.int(np.ceil(N_per * (1 - alpha)))]
@@ -520,7 +622,10 @@ def TST_C2ST_S(pred_C2ST, N_per, N1, alpha):
     # f = torch.nn.Softmax()
     # output = f(model_C2ST(S).mm(w_C2ST) + b_C2ST)
     pred_C2ST = pred_C2ST.max(1, keepdim=True)[1]
-    STAT = abs(pred_C2ST[:N1].type(torch.FloatTensor).mean() - pred_C2ST[N1:].type(torch.FloatTensor).mean())
+    STAT = abs(
+        pred_C2ST[:N1].type(torch.FloatTensor).mean()
+        - pred_C2ST[N1:].type(torch.FloatTensor).mean()
+    )
     STAT_vector = np.zeros(N_per)
 
     # ind = np.random.choice(N, (N_per, N), replace=False) # error and use the following three lines
@@ -541,7 +646,9 @@ def TST_C2ST_S(pred_C2ST, N_per, N1, alpha):
         ind_Y = ind[N1:]
         # print(indx)
         STAT_vector[r] = abs(
-            pred_C2ST[ind_X].type(torch.FloatTensor).mean() - pred_C2ST[ind_Y].type(torch.FloatTensor).mean())
+            pred_C2ST[ind_X].type(torch.FloatTensor).mean()
+            - pred_C2ST[ind_Y].type(torch.FloatTensor).mean()
+        )
 
     S_vector = np.sort(STAT_vector)
     threshold = S_vector[np.int(np.ceil(N_per * (1 - alpha)))]
@@ -770,13 +877,18 @@ def TST_C2ST_S(pred_C2ST, N_per, N1, alpha):
 # 		h = 1
 # 	return h, threshold,
 
-def flexible_kernel(X, Y, X_org, Y_org, sigma, sigma0=0.1, epsilon=1e-08, is_smooth=True):
+
+def flexible_kernel(
+    X, Y, X_org, Y_org, sigma, sigma0=0.1, epsilon=1e-08, is_smooth=True
+):
     """Flexible kernel calculation as in MMDu."""
     Dxy = Pdist2(X, Y)
     Dxy_org = Pdist2(X_org, Y_org)
     L = 1
     if is_smooth:
-        Kxy = (1 - epsilon) * torch.exp(-(Dxy / sigma0) ** L - Dxy_org / sigma) + epsilon * torch.exp(-Dxy_org / sigma)
+        Kxy = (1 - epsilon) * torch.exp(
+            -((Dxy / sigma0) ** L) - Dxy_org / sigma
+        ) + epsilon * torch.exp(-Dxy_org / sigma)
     else:
         Kxy = torch.exp(-Dxy / sigma0)
     return Kxy
@@ -799,42 +911,57 @@ def MMD_Diff_Var(Kyy, Kzz, Kxy, Kxz, epsilon=1e-08):
     Kyynd = Kyy - torch.diag(torch.diag(Kyy))
     Kzznd = Kzz - torch.diag(torch.diag(Kzz))
 
-    u_yy = torch.sum(Kyynd) * (1. / (n * (n - 1)))
-    u_zz = torch.sum(Kzznd) * (1. / (r * (r - 1)))
+    u_yy = torch.sum(Kyynd) * (1.0 / (n * (n - 1)))
+    u_zz = torch.sum(Kzznd) * (1.0 / (r * (r - 1)))
     u_xy = torch.sum(Kxy) / (m * n)
     u_xz = torch.sum(Kxz) / (m * r)
 
-    t1 = (1. / n ** 3) * torch.sum(Kyynd.T @ Kyynd) - u_yy ** 2
-    t2 = (1. / (n ** 2 * m)) * torch.sum(Kxy.T @ Kxy) - u_xy ** 2
-    t3 = (1. / (n * m ** 2)) * torch.sum(Kxy @ Kxy.T) - u_xy ** 2
-    t4 = (1. / r ** 3) * torch.sum(Kzznd.T @ Kzznd) - u_zz ** 2
-    t5 = (1. / (r * m ** 2)) * torch.sum(Kxz @ Kxz.T) - u_xz ** 2
-    t6 = (1. / (r ** 2 * m)) * torch.sum(Kxz.T @ Kxz) - u_xz ** 2
-    t7 = (1. / (n ** 2 * m)) * torch.sum(Kyynd @ Kxy.T) - u_yy * u_xy
-    t8 = (1. / (n * m * r)) * torch.sum(Kxy.T @ Kxz) - u_xz * u_xy
-    t9 = (1. / (r ** 2 * m)) * torch.sum(Kzznd @ Kxz.T) - u_zz * u_xz
+    t1 = (1.0 / n**3) * torch.sum(Kyynd.T @ Kyynd) - u_yy**2
+    t2 = (1.0 / (n**2 * m)) * torch.sum(Kxy.T @ Kxy) - u_xy**2
+    t3 = (1.0 / (n * m**2)) * torch.sum(Kxy @ Kxy.T) - u_xy**2
+    t4 = (1.0 / r**3) * torch.sum(Kzznd.T @ Kzznd) - u_zz**2
+    t5 = (1.0 / (r * m**2)) * torch.sum(Kxz @ Kxz.T) - u_xz**2
+    t6 = (1.0 / (r**2 * m)) * torch.sum(Kxz.T @ Kxz) - u_xz**2
+    t7 = (1.0 / (n**2 * m)) * torch.sum(Kyynd @ Kxy.T) - u_yy * u_xy
+    t8 = (1.0 / (n * m * r)) * torch.sum(Kxy.T @ Kxz) - u_xz * u_xy
+    t9 = (1.0 / (r**2 * m)) * torch.sum(Kzznd @ Kxz.T) - u_zz * u_xz
 
     if type(epsilon) == torch.Tensor:
         epsilon_tensor = epsilon.clone().detach()
     else:
         epsilon_tensor = torch.tensor(epsilon, device=Kyy.device)
     zeta1 = torch.max(t1 + t2 + t3 + t4 + t5 + t6 - 2 * (t7 + t8 + t9), epsilon_tensor)
-    zeta2 = torch.max((1 / m / (m - 1)) * torch.sum((Kyynd - Kzznd - Kxy.T - Kxy + Kxz + Kxz.T) ** 2) -
-                      (u_yy - 2 * u_xy - (u_zz - 2 * u_xz)) ** 2, epsilon_tensor)
+    zeta2 = torch.max(
+        (1 / m / (m - 1)) * torch.sum((Kyynd - Kzznd - Kxy.T - Kxy + Kxz + Kxz.T) ** 2)
+        - (u_yy - 2 * u_xy - (u_zz - 2 * u_xz)) ** 2,
+        epsilon_tensor,
+    )
 
-    data = {'t1': t1.item(), 't2': t2.item(), 't3': t3.item(), 't4': t4.item(), 't5': t5.item(), 't6': t6.item(),
-            't7': t7.item(), 't8': t8.item(), 't9': t9.item(), 'zeta1': zeta1.item(), 'zeta2': zeta2.item()}
+    data = {
+        "t1": t1.item(),
+        "t2": t2.item(),
+        "t3": t3.item(),
+        "t4": t4.item(),
+        "t5": t5.item(),
+        "t6": t6.item(),
+        "t7": t7.item(),
+        "t8": t8.item(),
+        "t9": t9.item(),
+        "zeta1": zeta1.item(),
+        "zeta2": zeta2.item(),
+    }
 
     Var = (4 * (m - 2) / (m * (m - 1))) * zeta1
-    Var_z2 = Var + (2. / (m * (m - 1))) * zeta2
+    Var_z2 = Var + (2.0 / (m * (m - 1))) * zeta2
 
     return Var, Var_z2, data
 
+
 def MMD_Diff_Var_Baseline(Kyy, Kzz, Kxy, Kxz, block_size=1024):
-    '''
+    """
     Compute the variance of the difference statistic MMDXY-MMDXZ
     See http://arxiv.org/pdf/1511.04581.pdf Appendix for derivations
-    '''
+    """
     m = Kxy.shape[0]
     n = Kyy.shape[0]
     r = Kzz.shape[0]
@@ -848,8 +975,8 @@ def MMD_Diff_Var_Baseline(Kyy, Kzz, Kxy, Kxz, block_size=1024):
     remove_diag_inplace(Kyy, block_size)
     remove_diag_inplace(Kzz, block_size)
 
-    u_yy = torch.sum(Kyy) * (1. / (n * (n - 1)))
-    u_zz = torch.sum(Kzz) * (1. / (r * (r - 1)))
+    u_yy = torch.sum(Kyy) * (1.0 / (n * (n - 1)))
+    u_zz = torch.sum(Kzz) * (1.0 / (r * (r - 1)))
     u_xy = torch.sum(Kxy) / (m * n)
     u_xz = torch.sum(Kxz) / (m * r)
 
@@ -864,40 +991,57 @@ def MMD_Diff_Var_Baseline(Kyy, Kzz, Kxy, Kxz, block_size=1024):
         return total_sum
 
     # compute zeta1
-    t1 = (1. / n ** 3) * block_sum_dot_product(Kyy.T, Kyy) - u_yy ** 2
-    t2 = (1. / (n ** 2 * m)) * block_sum_dot_product(Kxy.T, Kxy) - u_xy ** 2
-    t3 = (1. / (n * m ** 2)) * block_sum_dot_product(Kxy, Kxy.T) - u_xy ** 2
-    t4 = (1. / r ** 3) * block_sum_dot_product(Kzz.T, Kzz) - u_zz ** 2
-    t5 = (1. / (r * m ** 2)) * block_sum_dot_product(Kxz, Kxz.T) - u_xz ** 2
-    t6 = (1. / (r ** 2 * m)) * block_sum_dot_product(Kxz.T, Kxz) - u_xz ** 2
-    t7 = (1. / (n ** 2 * m)) * block_sum_dot_product(Kyy, Kxy.T) - u_yy * u_xy
-    t8 = (1. / (n * m * r)) * block_sum_dot_product(Kxy.T, Kxz) - u_xz * u_xy
-    t9 = (1. / (r ** 2 * m)) * block_sum_dot_product(Kzz, Kxz.T) - u_zz * u_xz
+    t1 = (1.0 / n**3) * block_sum_dot_product(Kyy.T, Kyy) - u_yy**2
+    t2 = (1.0 / (n**2 * m)) * block_sum_dot_product(Kxy.T, Kxy) - u_xy**2
+    t3 = (1.0 / (n * m**2)) * block_sum_dot_product(Kxy, Kxy.T) - u_xy**2
+    t4 = (1.0 / r**3) * block_sum_dot_product(Kzz.T, Kzz) - u_zz**2
+    t5 = (1.0 / (r * m**2)) * block_sum_dot_product(Kxz, Kxz.T) - u_xz**2
+    t6 = (1.0 / (r**2 * m)) * block_sum_dot_product(Kxz.T, Kxz) - u_xz**2
+    t7 = (1.0 / (n**2 * m)) * block_sum_dot_product(Kyy, Kxy.T) - u_yy * u_xy
+    t8 = (1.0 / (n * m * r)) * block_sum_dot_product(Kxy.T, Kxz) - u_xz * u_xy
+    t9 = (1.0 / (r**2 * m)) * block_sum_dot_product(Kzz, Kxz.T) - u_zz * u_xz
 
-    zeta1 = (t1 + t2 + t3 + t4 + t5 + t6 - 2. * (t7 + t8 + t9))
+    zeta1 = t1 + t2 + t3 + t4 + t5 + t6 - 2.0 * (t7 + t8 + t9)
 
-    zeta2 = (1 / m / (m - 1)) * torch.sum((Kyy - Kzz - Kxy.T - Kxy + Kxz + Kxz.T) ** 2) - (
-                u_yy - 2. * u_xy - (u_zz - 2. * u_xz)) ** 2
+    zeta2 = (1 / m / (m - 1)) * torch.sum(
+        (Kyy - Kzz - Kxy.T - Kxy + Kxz + Kxz.T) ** 2
+    ) - (u_yy - 2.0 * u_xy - (u_zz - 2.0 * u_xz)) ** 2
 
-    data = dict({'t1': t1.item(),
-                 't2': t2.item(),
-                 't3': t3.item(),
-                 't4': t4.item(),
-                 't5': t5.item(),
-                 't6': t6.item(),
-                 't7': t7.item(),
-                 't8': t8.item(),
-                 't9': t9.item(),
-                 'zeta1': zeta1.item(),
-                 'zeta2': zeta2.item(),
-                 })
+    data = dict(
+        {
+            "t1": t1.item(),
+            "t2": t2.item(),
+            "t3": t3.item(),
+            "t4": t4.item(),
+            "t5": t5.item(),
+            "t6": t6.item(),
+            "t7": t7.item(),
+            "t8": t8.item(),
+            "t9": t9.item(),
+            "zeta1": zeta1.item(),
+            "zeta2": zeta2.item(),
+        }
+    )
 
-    Var = (4. * (m - 2) / (m * (m - 1))) * zeta1
-    Var_z2 = Var + (2. / (m * (m - 1))) * zeta2
+    Var = (4.0 * (m - 2) / (m * (m - 1))) * zeta1
+    Var_z2 = Var + (2.0 / (m * (m - 1))) * zeta2
 
     return Var, Var_z2, data
 
-def TST_MMD_u_3S(ref_fea, fea_y, fea_z, ref_fea_org, fea_y_org, fea_z_org, sigma, sigma0, epsilon, alpha, is_smooth=True):
+
+def TST_MMD_u_3S(
+    ref_fea,
+    fea_y,
+    fea_z,
+    ref_fea_org,
+    fea_y_org,
+    fea_z_org,
+    sigma,
+    sigma0,
+    epsilon,
+    alpha,
+    is_smooth=True,
+):
     """Run three-sample test (TST) using deep kernel kernel."""
     X = ref_fea.clone().detach().cuda()
     Y = fea_y.clone().detach().cuda()
@@ -934,7 +1078,20 @@ def TST_MMD_u_3S(ref_fea, fea_y, fea_z, ref_fea_org, fea_y_org, fea_z_org, sigma
 
     return h, p_value.item(), t.item()
 
-def TST_MMD_u_3S_AUROC(ref_fea, fea_y, fea_z, ref_fea_org, fea_y_org, fea_z_org, sigma, sigma0, epsilon, alpha, is_smooth=True):
+
+def TST_MMD_u_3S_AUROC(
+    ref_fea,
+    fea_y,
+    fea_z,
+    ref_fea_org,
+    fea_y_org,
+    fea_z_org,
+    sigma,
+    sigma0,
+    epsilon,
+    alpha,
+    is_smooth=True,
+):
     """Run three-sample test (TST) using deep kernel kernel."""
     X = ref_fea.clone().detach().cuda()
     Y = fea_y.clone().detach().cuda()
@@ -959,7 +1116,22 @@ def TST_MMD_u_3S_AUROC(ref_fea, fea_y, fea_z, ref_fea_org, fea_y_org, fea_z_org,
     t = u_yy - 2 * u_xy - (u_zz - 2 * u_xz)
     return t.item()
 
-def TST_MMD_u_3S_Permutation(ref_fea, fea_y, fea_z, ref_fea_org, fea_y_org, fea_z_org, sigma, sigma0, epsilon, alpha, num_permutations=1000, is_smooth=True, t_stat_division=False):
+
+def TST_MMD_u_3S_Permutation(
+    ref_fea,
+    fea_y,
+    fea_z,
+    ref_fea_org,
+    fea_y_org,
+    fea_z_org,
+    sigma,
+    sigma0,
+    epsilon,
+    alpha,
+    num_permutations=1000,
+    is_smooth=True,
+    t_stat_division=False,
+):
     """Run three-sample test (TST) using permutation test."""
     X = ref_fea.clone().detach().cuda()
     Y = fea_y.clone().detach().cuda()
@@ -997,8 +1169,8 @@ def TST_MMD_u_3S_Permutation(ref_fea, fea_y, fea_z, ref_fea_org, fea_y_org, fea_
     for _ in range(num_permutations):
         combined = torch.cat((X, Y), dim=0)
         perm = torch.randperm(combined.size(0))
-        X_perm = combined[perm[:X.size(0)]]
-        Y_perm = combined[perm[X.size(0):]]
+        X_perm = combined[perm[: X.size(0)]]
+        Y_perm = combined[perm[X.size(0) :]]
 
         Kyy_perm = flexible_kernel(Y_perm, Y_perm, sigma, sigma0, epsilon, is_smooth)
         Kxy_perm = flexible_kernel(X_perm, Y_perm, sigma, sigma0, epsilon, is_smooth)
@@ -1013,8 +1185,10 @@ def TST_MMD_u_3S_Permutation(ref_fea, fea_y, fea_z, ref_fea_org, fea_y_org, fea_
             t_perm = t_perm / torch.sqrt(Diff_Var)
         perm_t_values.append(t_perm)
 
-    perm_t_values = torch.tensor(perm_t_values).to('cuda')
-    p_value = (torch.sum((t_original.to('cuda') < perm_t_values).int()).item() + 1) / (num_permutations + 1)
+    perm_t_values = torch.tensor(perm_t_values).to("cuda")
+    p_value = (torch.sum((t_original.to("cuda") < perm_t_values).int()).item() + 1) / (
+        num_permutations + 1
+    )
 
     if p_value < alpha:
         h = 1
@@ -1024,10 +1198,23 @@ def TST_MMD_u_3S_Permutation(ref_fea, fea_y, fea_z, ref_fea_org, fea_y_org, fea_
     return h, p_value, t_original.item()
 
 
-def TST_MMD_u_3S_Permutation_Kernel(ref_fea, fea_y, fea_z, ref_fea_org, fea_y_org, fea_z_org, sigma, sigma0, epsilon, alpha, num_permutations=1000,
-                                    is_smooth=True, t_stat_division=False):
+def TST_MMD_u_3S_Permutation_Kernel(
+    ref_fea,
+    fea_y,
+    fea_z,
+    ref_fea_org,
+    fea_y_org,
+    fea_z_org,
+    sigma,
+    sigma0,
+    epsilon,
+    alpha,
+    num_permutations=1000,
+    is_smooth=True,
+    t_stat_division=False,
+):
     """Run three-sample test (TST) using permutation test."""
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = "cuda" if torch.cuda.is_available() else "cpu"
 
     X = ref_fea.clone().detach().cuda()
     Y = fea_y.clone().detach().cuda()
@@ -1071,7 +1258,9 @@ def TST_MMD_u_3S_Permutation_Kernel(ref_fea, fea_y, fea_z, ref_fea_org, fea_y_or
     K_combined = flexible_kernel(combined, combined, sigma, sigma0, epsilon, is_smooth)
 
     # Create weight matrices for permutations
-    ws = torch.full((num_permutations + 1, n), -1, dtype=K_combined.dtype, device=device)
+    ws = torch.full(
+        (num_permutations + 1, n), -1, dtype=K_combined.dtype, device=device
+    )
     ws[:, :n_X] = 1
     for i in range(num_permutations):
         ws[i, torch.randperm(n)[:n_X]] = 1
@@ -1099,20 +1288,34 @@ def TST_MMD_u_3S_Permutation_Kernel(ref_fea, fea_y, fea_z, ref_fea_org, fea_y_or
     return h, p_value, t_original.item()
 
 
-def TST_MMD_u_3S_Baseline(X, Y, Z, sigma=-1, SelectSigma=2, alpha=0.05, return_sigma=False, sigma_path=None, no_median_heuristic=False):
+def TST_MMD_u_3S_Baseline(
+    X,
+    Y,
+    Z,
+    sigma=-1,
+    SelectSigma=2,
+    alpha=0.05,
+    return_sigma=False,
+    sigma_path=None,
+    no_median_heuristic=False,
+):
     """Run three-sample test (TST) using basic Gaussian kernel."""
     if not no_median_heuristic and sigma < 0:
         # Similar heuristics
         if SelectSigma > 1:
             ## Try to load sigma when it's not training mode (return_sigma=False)
-            if sigma_path is not None and os.path.exists(sigma_path) and not return_sigma:
+            if (
+                sigma_path is not None
+                and os.path.exists(sigma_path)
+                and not return_sigma
+            ):
                 sigma = np.load(sigma_path)
                 sigma = torch.tensor(sigma, device=X.device)
             else:
                 siz = min(1000, X.shape[0])
                 sigma1 = kernelwidthPair(X[:siz], Y[:siz])
                 sigma2 = kernelwidthPair(X[:siz], Z[:siz])
-                sigma = (sigma1 + sigma2) / 2.
+                sigma = (sigma1 + sigma2) / 2.0
         ## Problematic therefore not adapted
         # else:
         #     siz = min(1000, X.shape[0] * 3)
@@ -1136,13 +1339,13 @@ def TST_MMD_u_3S_Baseline(X, Y, Z, sigma=-1, SelectSigma=2, alpha=0.05, return_s
     Kyynd = Kyy - torch.diag(torch.diag(Kyy))
     Kzznd = Kzz - torch.diag(torch.diag(Kzz))
 
-    u_yy = torch.sum(Kyynd) * (1. / (n * (n - 1)))
-    u_zz = torch.sum(Kzznd) * (1. / (r * (r - 1)))
+    u_yy = torch.sum(Kyynd) * (1.0 / (n * (n - 1)))
+    u_zz = torch.sum(Kzznd) * (1.0 / (r * (r - 1)))
     u_xy = torch.sum(Kxy) / (m * n)
     u_xz = torch.sum(Kxz) / (m * r)
 
     # Compute the test statistic
-    t = u_yy - 2. * u_xy - (u_zz - 2. * u_xz)
+    t = u_yy - 2.0 * u_xy - (u_zz - 2.0 * u_xz)
     Diff_Var, Diff_Var_z2, data = MMD_Diff_Var_Baseline(Kyy, Kzz, Kxy, Kxz)
     if Diff_Var.item() <= 0:
         Diff_Var = torch.tensor(1e-08)
@@ -1162,7 +1365,7 @@ def TST_MMD_u_3S_Baseline(X, Y, Z, sigma=-1, SelectSigma=2, alpha=0.05, return_s
 
 
 def grbf(x1, x2, sigma, block_size=1024):
-    '''Calculates the Gaussian radial base function kernel with memory optimization.'''
+    """Calculates the Gaussian radial base function kernel with memory optimization."""
     if x1.ndim == 3:
         x1 = x1.reshape(-1, x1.shape[-1])
     if x2.ndim == 3:
@@ -1172,11 +1375,11 @@ def grbf(x1, x2, sigma, block_size=1024):
     m, mfeatures = x2.shape
 
     # Ensure the data is on the GPU
-    x1 = x1.to('cuda')
-    x2 = x2.to('cuda')
+    x1 = x1.to("cuda")
+    x2 = x2.to("cuda")
 
     # Initialize the kernel matrix
-    K = torch.zeros((n, m), device='cuda')
+    K = torch.zeros((n, m), device="cuda")
 
     # Compute the kernel matrix in blocks
     for i in range(0, n, block_size):
@@ -1184,12 +1387,13 @@ def grbf(x1, x2, sigma, block_size=1024):
         for j in range(0, m, block_size):
             end_j = min(j + block_size, m)
             block = torch.cdist(x1[i:end_i], x2[j:end_j]) ** 2
-            K[i:end_i, j:end_j] = torch.exp(-block / (2 * sigma ** 2))
+            K[i:end_i, j:end_j] = torch.exp(-block / (2 * sigma**2))
 
     return K
 
+
 def simple_grbf(x1, x2, sigma):
-    '''Simplified Gaussian radial basis function kernel.'''
+    """Simplified Gaussian radial basis function kernel."""
     # Reshape if necessary
     if x1.ndim == 3:
         x1 = x1.reshape(-1, x1.shape[-1])
@@ -1200,12 +1404,13 @@ def simple_grbf(x1, x2, sigma):
     dist = torch.cdist(x1, x2) ** 2
 
     # Compute the Gaussian kernel
-    K = torch.exp(-dist / (2 * sigma ** 2))
+    K = torch.exp(-dist / (2 * sigma**2))
 
     return K
 
+
 def kernelwidthPair(x1, x2, block_size=1024, chunk_size=1024 * 1024):
-    '''Implementation of the median heuristic with memory optimization on GPU.'''
+    """Implementation of the median heuristic with memory optimization on GPU."""
     if x1.ndim == 3:
         x1 = x1.reshape(-1, x1.shape[-1])
     if x2.ndim == 3:
@@ -1215,11 +1420,11 @@ def kernelwidthPair(x1, x2, block_size=1024, chunk_size=1024 * 1024):
     m, mfeatures = x2.shape
 
     # Ensure the data is on the GPU
-    x1 = x1.to('cuda')
-    x2 = x2.to('cuda')
+    x1 = x1.to("cuda")
+    x2 = x2.to("cuda")
 
     # Initialize distance matrix in blocks
-    h = torch.zeros((n, m), device='cuda')
+    h = torch.zeros((n, m), device="cuda")
 
     # Compute pairwise distances in blocks to save memory
     for i in range(0, n, block_size):
