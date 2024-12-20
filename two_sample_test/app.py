@@ -1,10 +1,12 @@
 import gradio as gr
 from two_sample_tester import TwoSampleTester
 
+# Initialize the TwoSampleTester class, which will load the model, tokenizer, and other necessary components
+tester = TwoSampleTester()
+
 
 def detect_function(input_text, intensity):
-    tester = TwoSampleTester(input_text)
-    return tester.test()
+    return tester.test(input_text)
 
 
 with gr.Blocks() as demo:

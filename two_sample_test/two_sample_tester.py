@@ -1,9 +1,13 @@
+from model_loader import ModelLoader
+
+
 class TwoSampleTester:
-    def __init__(self, input_text):
-        self.input_text = input_text
+    def __init__(self):
         # TODO: Initialize the feature extractor model
         # TODO: Initialize the text converter model
+        self.model, self.tokenizer = ModelLoader()
 
-    def test(self):
+    def test(self, input_text):
         # TODO: Implement the test function
-        return "Two Sample Tester result"
+        print(self.tokenizer(input_text))
+        return f"Two Sample Tester result {input_text}"
