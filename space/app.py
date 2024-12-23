@@ -1,7 +1,10 @@
 import gradio as gr
 from relative_tester import RelativeTester
+from model_loader import ModelLoader
 
-tester = RelativeTester()
+model_loader = ModelLoader()
+model, tokenizer, DEVICE = model_loader.model, model_loader.tokenizer
+tester = RelativeTester(model, tokenizer)
 
 
 def detect_function(input_text):
