@@ -1,5 +1,8 @@
 import gradio as gr
 from relative_tester import relative_tester
+from utils import init_random_seeds
+
+init_random_seeds()
 
 
 def detect_function(input_text):
