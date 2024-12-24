@@ -3,7 +3,9 @@ from relative_tester import relative_tester
 
 
 def detect_function(input_text):
-    return relative_tester.test(input_text)
+    if not input_text:
+        return "Now that you've built a demo, you'll probably want to share it with others. Gradio demos can be shared in two ways: using a temporary share link or permanent hosting on Spaces."
+    return relative_tester.test(input_text.strip())
 
 
 with gr.Blocks() as demo:

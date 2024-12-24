@@ -7,9 +7,10 @@ class RelativeTester:
 
     def test(self, input_text):
         print("Relative Tester test")
-        two_sample_tester.test(input_text)
-        two_sample_tester.test(input_text)
-        return f"Relative Tester result {input_text}"
+        return two_sample_tester.test(input_text)
+        # TODO: do the 2ST twice
+        # two_sample_tester.test(input_text)
+        # return f"Relative Tester result {input_text}"
 
 
 relative_tester = RelativeTester()
