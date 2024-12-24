@@ -1,14 +1,9 @@
 import gradio as gr
-from relative_tester import RelativeTester
-from model_loader import ModelLoader
-
-model_loader = ModelLoader()
-model, tokenizer, DEVICE = model_loader.model, model_loader.tokenizer
-tester = RelativeTester(model, tokenizer)
+from relative_tester import relative_tester
 
 
 def detect_function(input_text):
-    return tester.test(input_text)
+    return relative_tester.test(input_text)
 
 
 with gr.Blocks() as demo:

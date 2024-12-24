@@ -1,14 +1,15 @@
-from model_loader import ModelLoader
-from two_sample_tester import TwoSampleTester
+from two_sample_tester import two_sample_tester
 
 
 class RelativeTester:
-    def __init__(self, model, tokenizer):
-        self.tokenizer = tokenizer
-        self.model = model
-        print("Relative Tester initialized")
+    def __init__(self):
+        print("Relative Tester init")
 
     def test(self, input_text):
-        two_sample_tester = TwoSampleTester(self.model, self.tokenizer)
+        print("Relative Tester test")
+        two_sample_tester.test(input_text)
         two_sample_tester.test(input_text)
         return f"Relative Tester result {input_text}"
+
+
+relative_tester = RelativeTester()
