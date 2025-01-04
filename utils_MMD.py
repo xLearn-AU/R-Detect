@@ -878,19 +878,14 @@ def TST_C2ST_S(pred_C2ST, N_per, N1, alpha):
 # 	return h, threshold,
 
 
-def flexible_kernel(
-    X, Y, X_org, Y_org, sigma, sigma0=0.1, epsilon=1e-08, is_smooth=True
-):
+def flexible_kernel(X, Y, X_org, Y_org, sigma, sigma0=0.1, epsilon=1e-08):
     """Flexible kernel calculation as in MMDu."""
     Dxy = Pdist2(X, Y)
     Dxy_org = Pdist2(X_org, Y_org)
     L = 1
-    if is_smooth:
-        Kxy = (1 - epsilon) * torch.exp(
-            -((Dxy / sigma0) ** L) - Dxy_org / sigma
-        ) + epsilon * torch.exp(-Dxy_org / sigma)
-    else:
-        Kxy = torch.exp(-Dxy / sigma0)
+    Kxy = (1 - epsilon) * torch.exp(
+        -((Dxy / sigma0) ** L) - Dxy_org / sigma
+    ) + epsilon * torch.exp(-Dxy_org / sigma)
     return Kxy
 
 
@@ -1029,6 +1024,7 @@ def MMD_Diff_Var_Baseline(Kyy, Kzz, Kxy, Kxz, block_size=1024):
     return Var, Var_z2, data
 
 
+# TODO: figure out how this works
 def TST_MMD_u_3S(
     ref_fea,
     fea_y,
@@ -1040,7 +1036,6 @@ def TST_MMD_u_3S(
     sigma0,
     epsilon,
     alpha,
-    is_smooth=True,
 ):
     """Run three-sample test (TST) using deep kernel kernel."""
     X = ref_fea.clone().detach().cuda()
@@ -1050,10 +1045,10 @@ def TST_MMD_u_3S(
     Y_org = fea_y_org.clone().detach().cuda()
     Z_org = fea_z_org.clone().detach().cuda()
 
-    Kyy = flexible_kernel(Y, Y, Y_org, Y_org, sigma, sigma0, epsilon, is_smooth)
-    Kzz = flexible_kernel(Z, Z, Z_org, Z_org, sigma, sigma0, epsilon, is_smooth)
-    Kxy = flexible_kernel(X, Y, X_org, Y_org, sigma, sigma0, epsilon, is_smooth)
-    Kxz = flexible_kernel(X, Z, X_org, Z_org, sigma, sigma0, epsilon, is_smooth)
+    Kyy = flexible_kernel(Y, Y, Y_org, Y_org, sigma, sigma0, epsilon)
+    Kzz = flexible_kernel(Z, Z, Z_org, Z_org, sigma, sigma0, epsilon)
+    Kxy = flexible_kernel(X, Y, X_org, Y_org, sigma, sigma0, epsilon)
+    Kxz = flexible_kernel(X, Z, X_org, Z_org, sigma, sigma0, epsilon)
 
     Kyynd = Kyy - torch.diag(torch.diag(Kyy))
     Kzznd = Kzz - torch.diag(torch.diag(Kzz))

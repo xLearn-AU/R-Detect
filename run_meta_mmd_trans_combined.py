@@ -2435,13 +2435,11 @@ if __name__ == "__main__":
                     fea_test_ls,
                     fea_real_ls,
                     fea_generated_ls,
-                    use_all_references=False,
                     N=10,
                     TST_MMD=TST_MMD_u_3S,
                     TST_MMD_kwargs={},
-                    use_meta_model=False,
-                    cut_same_length=True,
                 ):
+
                     ## y = real, z = generated
                     fea_test_ls_ori = fea_test_ls
                     ## Concatenate the hidden states of the real and generated data
@@ -2478,8 +2476,7 @@ if __name__ == "__main__":
                                 len(fea_generated_ls),
                                 len(fea_test_ori),
                             )
-                            if cut_same_length:
-                                fea_test_ori = fea_test_ori[:min_len]
+                            fea_test_ori = fea_test_ori[:min_len]
                             final_x = net(fea_test_ori)
 
                             # temp_p_value_ls = []
@@ -2489,123 +2486,61 @@ if __name__ == "__main__":
                             lowest_h_value = None
                             lowest_t_value = None
 
-                            if use_all_references:
-                                max_len = (
-                                    len(fea_real_ls) - len(fea_test_ori)
-                                    if len(fea_real_ls) > len(fea_test_ori)
-                                    else len(fea_real_ls)
-                                )
-                                step_len = min(
-                                    len(fea_real_ls),
-                                    len(fea_generated_ls),
-                                    len(fea_test_ori),
-                                )
-                                if not cut_same_length:
-                                    max_len = len(fea_real_ls)
-                                    step_len = min(
-                                        len(fea_generated_ls), len(fea_real_ls)
-                                    )
-                            else:
-                                max_len = N
-                                step_len = 1
+                            max_len = N
+                            step_len = 1
                             j = 0
                             while j < max_len:
-                                if use_all_references:
-                                    if cut_same_length:
-                                        fea_test_ori = fea_test_ori[:step_len]
-                                    fea_real_ori = fea_real_ls[j : j + step_len]
-                                    fea_generated_ori = fea_generated_ls[
-                                        j : j + step_len
-                                    ]
-                                    final_x = net(fea_test_ori)
-                                else:
-                                    if cut_same_length:
-                                        fea_real_ori = fea_real_ls[
-                                            torch.randperm(len(fea_real_ls))[:min_len]
-                                        ]
-                                        fea_generated_ori = fea_generated_ls[
-                                            torch.randperm(len(fea_generated_ls))[
-                                                :min_len
-                                            ]
-                                        ]
-                                    else:
-                                        fea_real_ori = fea_real_ls[
-                                            torch.randperm(len(fea_real_ls))
-                                        ]
-                                        fea_generated_ori = fea_generated_ls[
-                                            torch.randperm(len(fea_generated_ls))
-                                        ]
+
+                                fea_real_ori = fea_real_ls[
+                                    torch.randperm(len(fea_real_ls))[:min_len]
+                                ]
+                                fea_generated_ori = fea_generated_ls[
+                                    torch.randperm(len(fea_generated_ls))[:min_len]
+                                ]
 
                                 final_y = net(fea_real_ori)
                                 final_z = net(fea_generated_ori)
 
-                                if use_meta_model:
-                                    h_u, p_value, t, *rest = TST_MMD(
-                                        final_x,
-                                        final_y,
-                                        final_z,
-                                        fea_test_ori.view(fea_test_ori.shape[0], -1),
-                                        fea_real_ori.view(fea_real_ori.shape[0], -1),
-                                        fea_generated_ori.view(
-                                            fea_generated_ori.shape[0], -1
-                                        ),
-                                        **TST_MMD_kwargs,
-                                    )
-                                else:
-                                    h_u, p_value, t, *rest = TST_MMD(
-                                        fea_test_ori,
-                                        fea_real_ori,
-                                        fea_generated_ori,
-                                        **TST_MMD_kwargs,
-                                    )
+                                h_u, p_value, t, *rest = TST_MMD(
+                                    final_x,
+                                    final_y,
+                                    final_z,
+                                    fea_test_ori.view(fea_test_ori.shape[0], -1),
+                                    fea_real_ori.view(fea_real_ori.shape[0], -1),
+                                    fea_generated_ori.view(
+                                        fea_generated_ori.shape[0], -1
+                                    ),
+                                    **TST_MMD_kwargs,
+                                )
+
                                 if p_value < lowest_p_value:
                                     lowest_p_value = p_value
                                     lowest_h_value = h_u
                                     lowest_t_value = t
-                                # temp_p_value_ls.append(p_value)
-                                # temp_t_ls.append(t)
-                                # temp_test_power_ls.append(h_u)
-                                if use_all_references:
-                                    ## If the remaining data is less than the step length, then set the index to the maximum length minus the step length times 2, to ensure the remaining data is enough for 1 step length
-                                    if (j + step_len * 2 > max_len) and (
-                                        j + step_len < max_len
-                                    ):
-                                        j = max_len - step_len * 2
+
                                 j += step_len
                             p_value_ls.append(lowest_p_value)
                             t_ls.append(lowest_t_value)
                             test_power_ls.append(lowest_h_value)
-
-                            # ## Take the minimum p-value and the corresponding t and test power
-                            # temp_p_value_ls = [min(max(p, 1e-08), 1 - 1e-08) for p in temp_p_value_ls]
-                            # _, p_value = combine_pvalues(temp_p_value_ls, method='stouffer')
-                            # if p_value < lowest_p_value:
-                            #     lowest_p_value = p_value
-                            #     p_value_ls = temp_p_value_ls
-                            #     t_ls = temp_t_ls
-                            #     test_power_ls = temp_test_power_ls
 
                     if rest:
                         return test_power_ls, p_value_ls, t_ls, rest
                     return test_power_ls, p_value_ls, t_ls
 
                 def mmd_three_sample(fea_test_ls, fea_real_ls, fea_generated_ls, N=10):
-                    TST_MMD_kwargs = {
-                        "sigma": sigma,
-                        "sigma0": sigma0_u,
-                        "epsilon": ep,
-                        "alpha": args.relative_test_alpha,
-                        "is_smooth": True,
-                    }
                     return mmd_three_sample_base(
                         fea_test_ls,
                         fea_real_ls,
                         fea_generated_ls,
-                        use_all_references=(args.relative_test_reference_mode == "all"),
                         N=N,
                         TST_MMD=TST_MMD_u_3S,
-                        TST_MMD_kwargs=TST_MMD_kwargs,
-                        use_meta_model=True,
+                        TST_MMD_kwargs={
+                            "sigma": sigma,
+                            "sigma0": sigma0_u,
+                            "epsilon": ep,
+                            "alpha": args.relative_test_alpha,
+                            "is_smooth": True,
+                        },
                     )
 
                 p_value_ls = None
