@@ -2436,7 +2436,6 @@ if __name__ == "__main__":
                     fea_real_ls,
                     fea_generated_ls,
                     N=10,
-                    TST_MMD=TST_MMD_u_3S,
                     TST_MMD_kwargs={},
                 ):
 
@@ -2501,7 +2500,7 @@ if __name__ == "__main__":
                                 final_y = net(fea_real_ori)
                                 final_z = net(fea_generated_ori)
 
-                                h_u, p_value, t, *rest = TST_MMD(
+                                h_u, p_value, t, *rest = TST_MMD_u_3S(
                                     final_x,
                                     final_y,
                                     final_z,
@@ -2533,7 +2532,6 @@ if __name__ == "__main__":
                         fea_real_ls,
                         fea_generated_ls,
                         N=N,
-                        TST_MMD=TST_MMD_u_3S,
                         TST_MMD_kwargs={
                             "sigma": sigma,
                             "sigma0": sigma0_u,

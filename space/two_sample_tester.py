@@ -37,7 +37,6 @@ class TwoSampleTester:
             net.sigma,
             net.sigma0_u,
             net.ep,
-            is_smooth=False,
         ).to("cpu")
         # Use the regression model to get the 2-sample test result
         y_pred_loaded = regression_model.model.predict(

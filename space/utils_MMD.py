@@ -21,7 +21,6 @@ def MMD_batch2(
     sigma,
     sigma0=0.1,
     epsilon=10 ** (-10),
-    is_smooth=True,
     is_var_computed=True,
     use_1sample_U=True,
     coeff_xy=2,
@@ -39,37 +38,16 @@ def MMD_batch2(
     Dyy = torch.zeros(Fea.shape[0] - len_s, 1).to(Dxx.device)
     # Dyy = Pdist2(Y, Y)
     Dxy = Pdist2(X, Y).transpose(0, 1)
-    if is_smooth:
-        Dxx_org = Pdist2(X_org, X_org)
-        Dyy_org = torch.zeros(Fea.shape[0] - len_s, 1).to(Dxx.device)
-        # Dyy_org = Pdist2(Y_org, Y_org) # 1，1  0
-        Dxy_org = Pdist2(X_org, Y_org).transpose(0, 1)
-
-    if is_smooth:
-        Kx = (1 - epsilon) * torch.exp(
-            -((Dxx / sigma0) ** L) - Dxx_org / sigma
-        ) + epsilon * torch.exp(-Dxx_org / sigma)
-        Ky = (1 - epsilon) * torch.exp(
-            -((Dyy / sigma0) ** L) - Dyy_org / sigma
-        ) + epsilon * torch.exp(-Dyy_org / sigma)
-        Kxy = (1 - epsilon) * torch.exp(
-            -((Dxy / sigma0) ** L) - Dxy_org / sigma
-        ) + epsilon * torch.exp(-Dxy_org / sigma)
-    else:
-        Kx = torch.exp(-Dxx / sigma0)
-        Ky = torch.exp(-Dyy / sigma0)
-        Kxy = torch.exp(-Dxy / sigma0)
+    Kx = torch.exp(-Dxx / sigma0)
+    Ky = torch.exp(-Dyy / sigma0)
+    Kxy = torch.exp(-Dxy / sigma0)
 
     nx = Kx.shape[0]
 
     is_unbiased = False
-    if 1:
-        xx = torch.div((torch.sum(Kx)), (nx * nx))
-        yy = Ky.reshape(-1)
+    xx = torch.div((torch.sum(Kx)), (nx * nx))
+    yy = Ky.reshape(-1)
+    xy = torch.div(torch.sum(Kxy, dim=1), (nx))
 
-        # one-sample U-statistic.
-
-        xy = torch.div(torch.sum(Kxy, dim=1), (nx))
-
-        mmd2 = xx - 2 * xy + yy
+    mmd2 = xx - 2 * xy + yy
     return mmd2
