@@ -8,6 +8,7 @@ class FeatureRefLoader:
         print("Feature Ref Loader init")
         self.test_feature_ref = self.load("./feature_ref_for_test.pt")
 
+    # TODO: The format of feature
     def load(self, feature_ref_file_name, num_ref=5000):
         print("Feature Ref Loader load")
         load_ref_data = torch.load(feature_ref_file_name, map_location=DEVICE)  # cpu
@@ -19,3 +20,7 @@ class FeatureRefLoader:
 
 
 feature_ref = FeatureRefLoader()
+
+# TODO: load MGT and HWT feature ref here
+feature_mgt_ref = FeatureRefLoader()
+feature_hwt_ref = FeatureRefLoader()

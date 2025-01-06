@@ -1025,7 +1025,8 @@ def MMD_Diff_Var_Baseline(Kyy, Kzz, Kxy, Kxz, block_size=1024):
 
 
 # TODO: figure out how this works
-def TST_MMD_u_3S(
+# https://github.com/eugenium/MMD/blob/master/mmd.py
+def MMD_3_Sample_Test(
     ref_fea,
     fea_y,
     fea_z,

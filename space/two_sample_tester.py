@@ -3,7 +3,7 @@ from roberta_model_loader import roberta_model
 from feature_ref_loader import feature_ref
 from meta_train import net
 from regression_model_loader import regression_model
-from utils_MMD import MMD_batch2
+from MMD import MMD_batch2
 from utils import DEVICE
 
 
@@ -42,7 +42,6 @@ class TwoSampleTester:
         y_pred_loaded = regression_model.model.predict(
             mmd_feature_for_input_text.detach().numpy().reshape(-1, 1)
         )
-        print("y_pred_loaded:", y_pred_loaded)
 
         prediction = int(y_pred_loaded[0])
         if prediction == 0:

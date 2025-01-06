@@ -3,8 +3,12 @@
 Official Huggingface Space Demo
 
 
-Questions:
-- How many model do we need to load? 
-  - one for tokenize
-  - one for feature extract? "net"?
-  - one for predict? "feature_ref_for_test"? f(s; p, alpha)
+TODO:
+  - Should I use TST_MMD_u_3S / MMD_3_Sample_Test to do the relative test?
+    - Return the p_value directly
+  - Where to load the feature for MGT and HWT?
+    - What's the dimension of feature data?
+
+  - Add more models for generation
+  - Debug the current app
+  - Optimize the UX
