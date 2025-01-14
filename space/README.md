@@ -11,4 +11,4 @@ TODO:
 
   - Add more models for generation
   - Debug the current app
-  - Optimize the UX
+  - Merge the UI design
