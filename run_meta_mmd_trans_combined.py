@@ -2417,12 +2417,6 @@ if __name__ == "__main__":
             relative_test_permutation=False,
             relative_test_baseline_simple=False,
         ):
-            test_flag = True
-            return_p_and_stat = True
-            relative_test_baseline = False
-            relative_test_permutation = False
-            relative_test_baseline_simple = False
-
             global power_best
             model_path = f"./{PATH_exper}/HC3-{args.base_model_name}/{id}"
             ## Set the model to evaluation mode
@@ -2430,15 +2424,235 @@ if __name__ == "__main__":
             with torch.no_grad():
 
                 ## Function to get the test power of the real and generated data pairs via N times of MMD test
+                def mmd_two_sample(fea_real_ls, fea_generated_ls, N=100):
+                    ## Cut the real and generated data to the same length (according to the minimum length of the real and generated data)
+                    fea_real_ls = fea_real_ls[
+                        : min(len(fea_real_ls), len(fea_generated_ls))
+                    ]
+                    fea_generated_ls = fea_generated_ls[
+                        : min(len(fea_real_ls), len(fea_generated_ls))
+                    ]
+
+                    test_power_ls = []
+                    mmd_value_ls = []
+
+                    N_per = 50
+                    alpha = 0.05
+                    for i in range(len(fea_real_ls)):
+
+                        # if i>100:
+                        # 	break
+                        fea_x_ori = fea_real_ls[i].to("cuda")
+                        fea_y_ori = fea_generated_ls[i].to("cuda")
+                        fea_x_ori = fea_x_ori[: min(len(fea_x_ori), len(fea_y_ori))]
+                        fea_y_ori = fea_y_ori[: min(len(fea_x_ori), len(fea_y_ori))]
+                        final_x = net(fea_x_ori)
+                        final_y = net(fea_y_ori)
+                        count_u = 0
+                        for _ in range(N):
+                            h_u, threshold_u, mmd_value_u = TST_MMD_u(
+                                torch.cat([final_x, final_y], dim=0),
+                                N_per,
+                                final_x.shape[0],
+                                torch.cat([fea_x_ori, fea_y_ori], dim=0).view(
+                                    fea_x_ori.shape[0] + fea_y_ori.shape[0], -1
+                                ),
+                                sigma,
+                                sigma0_u,
+                                ep,
+                                alpha,
+                            )
+                            count_u = count_u + h_u
+
+                        test_power_ls.append(count_u / N)
+                        mmd_value_ls.append(mmd_value_u)
+
+                    return test_power_ls, mmd_value_ls
+
+                def mmd_two_sample_baseline_permutation(
+                    fea_test_ls, fea_real_ls, fea_generated_ls, N=100
+                ):
+                    if not args.test_text_split:
+                        ## Concatenate the hidden states of the real and generated data
+                        fea_real_ls = [torch.cat(fea_real_ls, dim=0)]
+                        fea_generated_ls = [torch.cat(fea_generated_ls, dim=0)]
+                    ## Cut the real and generated data to the same length (according to the minimum length of the real and generated data)
+                    min_len = min(len(fea_real_ls), len(fea_generated_ls))
+                    fea_real_ls = fea_real_ls[:min_len]
+                    fea_generated_ls = fea_generated_ls[:min_len]
+
+                    test_power_ls = []
+                    mmd_value_ls = []
+                    p_value_ls = []
+
+                    N_per = 50
+
+                    for i in range(len(fea_test_ls)):
+                        fea_x_ori = fea_test_ls[i].to("cuda")
+                        final_x = net(fea_x_ori)
+
+                        for j in range(len(fea_real_ls)):
+                            fea_y_ori = fea_real_ls[j].to("cuda")
+                            fea_z_ori = fea_generated_ls[j].to("cuda")
+                            fea_y_ori = fea_y_ori[: min(len(fea_z_ori), len(fea_y_ori))]
+                            fea_z_ori = fea_z_ori[: min(len(fea_z_ori), len(fea_y_ori))]
+
+                            final_y = net(fea_y_ori)
+                            final_z = net(fea_z_ori)
+
+                            final_y = final_y[: min(len(final_y), len(final_z))]
+                            final_z = final_z[: min(len(final_y), len(final_z))]
+                            count_u = 0
+                            for _ in range(N):
+                                final_real = torch.cat([final_x, final_y], dim=0)[
+                                    : ((final_x.shape[0] + final_y.shape[0]) // 2) * 2
+                                ]
+                                final_generated = torch.cat([final_x, final_z], dim=0)[
+                                    : ((final_x.shape[0] + final_z.shape[0]) // 2) * 2
+                                ]
+                                h_u_real, p_real, mmd_value_u_real = TST_MMD_u(
+                                    final_real,
+                                    N_per,
+                                    (final_real.shape[0] // 2),
+                                    final_real.view(final_real.shape[0], -1),
+                                    sigma,
+                                    sigma0_u,
+                                    ep,
+                                    args.relative_test_alpha,
+                                )
+                                ## interchanging the real and generated data
+                                h_u_generated, p_generated, mmd_value_u_generated = (
+                                    TST_MMD_u(
+                                        final_generated,
+                                        N_per,
+                                        (final_generated.shape[0] // 2),
+                                        final_generated.view(
+                                            final_generated.shape[0], -1
+                                        ),
+                                        sigma,
+                                        sigma0_u,
+                                        ep,
+                                        args.relative_test_alpha,
+                                    )
+                                )
+                                ## take the smaller p-value and the corresponding h_u and mmd_value_u
+                                p_value = p_real
+                                h_u = h_u_real
+                                mmd_u = mmd_value_u_real
+                                if p_generated < p_real:
+                                    p_value = abs(p_generated - 1)
+                                    h_u = abs(h_u_generated - 1)
+                                    mmd_u = mmd_value_u_generated
+                                count_u = count_u + h_u
+                                p_value_ls.append(p_value)
+                                mmd_value_ls.append(mmd_u)
+
+                            test_power_ls.append(count_u / N)
+
+                    return test_power_ls, p_value_ls, mmd_value_ls
+
+                def mmd_two_sample_baseline(
+                    fea_test_ls, fea_real_ls, fea_generated_ls, N=100
+                ):
+                    ## Concatenate the hidden states of the real and generated data
+                    fea_real_ls = torch.cat(fea_real_ls, dim=0).to("cuda")
+                    fea_generated_ls = torch.cat(fea_generated_ls, dim=0).to("cuda")
+                    ## Cut the real and generated data to the same length (according to the minimum length of the real and generated data)
+                    min_len = min(len(fea_real_ls), len(fea_generated_ls))
+                    fea_real_ls = fea_real_ls[:min_len]
+                    fea_generated_ls = fea_generated_ls[:min_len]
+
+                    test_power_ls = []
+                    mmd_value_ls = []
+                    p_value_ls = []
+
+                    N_per = 50
+                    for _ in range(max(args.test_text_n_sample_rounds, 1)):
+                        ## If the reference data is not splitted, then randomly sample n samples from the reference data
+                        if (
+                            not args.test_text_split
+                            and len(fea_test_ls) == 1
+                            and args.test_text_n_sample_rounds
+                        ):
+                            ## Randomly sample n samples from the reference data tensor
+                            fea_test_ls[0] = fea_test_ls[0][
+                                torch.randperm(len(fea_test_ls[0]))[
+                                    : args.test_text_n_samples
+                                ]
+                            ]
+                        for i in range(len(fea_test_ls)):
+                            fea_x_ori = fea_test_ls[i].to("cuda")
+                            fea_y_ori = fea_real_ls[torch.randperm(len(fea_real_ls))]
+                            fea_z_ori = fea_generated_ls[
+                                torch.randperm(len(fea_generated_ls))
+                            ]
+
+                            min_len = min(
+                                len(fea_x_ori), len(fea_y_ori), len(fea_z_ori)
+                            )
+                            fea_x_ori = fea_x_ori[:min_len]
+                            fea_y_ori = fea_y_ori[:min_len]
+                            fea_z_ori = fea_z_ori[:min_len]
+
+                            final_x = net(fea_x_ori)
+                            final_y = net(fea_y_ori)
+                            final_z = net(fea_z_ori)
+                            count_u = 0
+                            for _ in range(N):
+                                h_u_real, p_real, mmd_value_u_real = TST_MMD_u(
+                                    torch.cat([final_y, final_x], dim=0),
+                                    N_per,
+                                    final_x.shape[0],
+                                    torch.cat([fea_y_ori, fea_x_ori], dim=0).view(
+                                        fea_y_ori.shape[0] + fea_x_ori.shape[0], -1
+                                    ),
+                                    sigma,
+                                    sigma0_u,
+                                    ep,
+                                    args.relative_test_alpha,
+                                )
+                                ## interchanging the real and generated data
+                                h_u_generated, p_generated, mmd_value_u_generated = (
+                                    TST_MMD_u(
+                                        torch.cat([final_x, final_z], dim=0),
+                                        N_per,
+                                        final_x.shape[0],
+                                        torch.cat([fea_x_ori, fea_z_ori], dim=0).view(
+                                            fea_x_ori.shape[0] + fea_z_ori.shape[0], -1
+                                        ),
+                                        sigma,
+                                        sigma0_u,
+                                        ep,
+                                        args.relative_test_alpha,
+                                    )
+                                )
+                                ## take the smaller p-value and the corresponding h_u and mmd_value_u
+                                p_value = p_real
+                                h_u = h_u_real
+                                mmd_u = mmd_value_u_real
+                                if p_generated < p_real:
+                                    p_value = abs(p_generated - 1)
+                                    h_u = abs(h_u_generated - 1)
+                                    mmd_u = mmd_value_u_generated
+                                count_u = count_u + h_u
+                                p_value_ls.append(p_value)
+                                mmd_value_ls.append(mmd_u)
+
+                            test_power_ls.append(count_u / N)
+
+                    return test_power_ls, p_value_ls, mmd_value_ls
 
                 def mmd_three_sample_base(
                     fea_test_ls,
                     fea_real_ls,
                     fea_generated_ls,
+                    use_all_references=False,
                     N=10,
+                    TST_MMD=TST_MMD_u_3S,
                     TST_MMD_kwargs={},
+                    use_meta_model=False,
+                    cut_same_length=True,
                 ):
-
                     ## y = real, z = generated
                     fea_test_ls_ori = fea_test_ls
                     ## Concatenate the hidden states of the real and generated data
@@ -2475,7 +2689,8 @@ if __name__ == "__main__":
                                 len(fea_generated_ls),
                                 len(fea_test_ori),
                             )
-                            fea_test_ori = fea_test_ori[:min_len]
+                            if cut_same_length:
+                                fea_test_ori = fea_test_ori[:min_len]
                             final_x = net(fea_test_ori)
 
                             # temp_p_value_ls = []
@@ -2485,68 +2700,220 @@ if __name__ == "__main__":
                             lowest_h_value = None
                             lowest_t_value = None
 
-                            max_len = N
-                            step_len = 1
+                            if use_all_references:
+                                max_len = (
+                                    len(fea_real_ls) - len(fea_test_ori)
+                                    if len(fea_real_ls) > len(fea_test_ori)
+                                    else len(fea_real_ls)
+                                )
+                                step_len = min(
+                                    len(fea_real_ls),
+                                    len(fea_generated_ls),
+                                    len(fea_test_ori),
+                                )
+                                if not cut_same_length:
+                                    max_len = len(fea_real_ls)
+                                    step_len = min(
+                                        len(fea_generated_ls), len(fea_real_ls)
+                                    )
+                            else:
+                                max_len = N
+                                step_len = 1
                             j = 0
                             while j < max_len:
-
-                                fea_real_ori = fea_real_ls[
-                                    torch.randperm(len(fea_real_ls))[:min_len]
-                                ]
-                                fea_generated_ori = fea_generated_ls[
-                                    torch.randperm(len(fea_generated_ls))[:min_len]
-                                ]
+                                if use_all_references:
+                                    if cut_same_length:
+                                        fea_test_ori = fea_test_ori[:step_len]
+                                    fea_real_ori = fea_real_ls[j : j + step_len]
+                                    fea_generated_ori = fea_generated_ls[
+                                        j : j + step_len
+                                    ]
+                                    final_x = net(fea_test_ori)
+                                else:
+                                    if cut_same_length:
+                                        fea_real_ori = fea_real_ls[
+                                            torch.randperm(len(fea_real_ls))[:min_len]
+                                        ]
+                                        fea_generated_ori = fea_generated_ls[
+                                            torch.randperm(len(fea_generated_ls))[
+                                                :min_len
+                                            ]
+                                        ]
+                                    else:
+                                        fea_real_ori = fea_real_ls[
+                                            torch.randperm(len(fea_real_ls))
+                                        ]
+                                        fea_generated_ori = fea_generated_ls[
+                                            torch.randperm(len(fea_generated_ls))
+                                        ]
 
                                 final_y = net(fea_real_ori)
                                 final_z = net(fea_generated_ori)
 
-                                h_u, p_value, t, *rest = TST_MMD_u_3S(
-                                    final_x,
-                                    final_y,
-                                    final_z,
-                                    fea_test_ori.view(fea_test_ori.shape[0], -1),
-                                    fea_real_ori.view(fea_real_ori.shape[0], -1),
-                                    fea_generated_ori.view(
-                                        fea_generated_ori.shape[0], -1
-                                    ),
-                                    **TST_MMD_kwargs,
-                                )
-
+                                if use_meta_model:
+                                    h_u, p_value, t, *rest = TST_MMD(
+                                        final_x,
+                                        final_y,
+                                        final_z,
+                                        fea_test_ori.view(fea_test_ori.shape[0], -1),
+                                        fea_real_ori.view(fea_real_ori.shape[0], -1),
+                                        fea_generated_ori.view(
+                                            fea_generated_ori.shape[0], -1
+                                        ),
+                                        **TST_MMD_kwargs,
+                                    )
+                                else:
+                                    h_u, p_value, t, *rest = TST_MMD(
+                                        fea_test_ori,
+                                        fea_real_ori,
+                                        fea_generated_ori,
+                                        **TST_MMD_kwargs,
+                                    )
                                 if p_value < lowest_p_value:
                                     lowest_p_value = p_value
                                     lowest_h_value = h_u
                                     lowest_t_value = t
-
+                                # temp_p_value_ls.append(p_value)
+                                # temp_t_ls.append(t)
+                                # temp_test_power_ls.append(h_u)
+                                if use_all_references:
+                                    ## If the remaining data is less than the step length, then set the index to the maximum length minus the step length times 2, to ensure the remaining data is enough for 1 step length
+                                    if (j + step_len * 2 > max_len) and (
+                                        j + step_len < max_len
+                                    ):
+                                        j = max_len - step_len * 2
                                 j += step_len
                             p_value_ls.append(lowest_p_value)
                             t_ls.append(lowest_t_value)
                             test_power_ls.append(lowest_h_value)
+
+                            # ## Take the minimum p-value and the corresponding t and test power
+                            # temp_p_value_ls = [min(max(p, 1e-08), 1 - 1e-08) for p in temp_p_value_ls]
+                            # _, p_value = combine_pvalues(temp_p_value_ls, method='stouffer')
+                            # if p_value < lowest_p_value:
+                            #     lowest_p_value = p_value
+                            #     p_value_ls = temp_p_value_ls
+                            #     t_ls = temp_t_ls
+                            #     test_power_ls = temp_test_power_ls
 
                     if rest:
                         return test_power_ls, p_value_ls, t_ls, rest
                     return test_power_ls, p_value_ls, t_ls
 
                 def mmd_three_sample(fea_test_ls, fea_real_ls, fea_generated_ls, N=10):
+                    TST_MMD_kwargs = {
+                        "sigma": sigma,
+                        "sigma0": sigma0_u,
+                        "epsilon": ep,
+                        "alpha": args.relative_test_alpha,
+                        "is_smooth": True,
+                    }
                     return mmd_three_sample_base(
                         fea_test_ls,
                         fea_real_ls,
                         fea_generated_ls,
+                        use_all_references=(args.relative_test_reference_mode == "all"),
                         N=N,
-                        TST_MMD_kwargs={
-                            "sigma": sigma,
-                            "sigma0": sigma0_u,
-                            "epsilon": ep,
-                            "alpha": args.relative_test_alpha,
-                            "is_smooth": True,
-                        },
+                        TST_MMD=TST_MMD_u_3S,
+                        TST_MMD_kwargs=TST_MMD_kwargs,
+                        use_meta_model=True,
+                    )
+
+                def mmd_three_sample_permutation(
+                    fea_test_ls, fea_real_ls, fea_generated_ls, N=10
+                ):
+                    TST_MMD_kwargs = {
+                        "sigma": sigma,
+                        "sigma0": sigma0_u,
+                        "epsilon": ep,
+                        "alpha": args.relative_test_alpha,
+                        "num_permutations": 50,
+                        "is_smooth": True,
+                    }
+                    return mmd_three_sample_base(
+                        fea_test_ls,
+                        fea_real_ls,
+                        fea_generated_ls,
+                        use_all_references=True,
+                        N=N,
+                        TST_MMD=TST_MMD_u_3S_Permutation_Kernel,
+                        TST_MMD_kwargs=TST_MMD_kwargs,
+                        use_meta_model=True,
+                        cut_same_length=False,
+                    )
+
+                def mmd_three_sample_baseline(
+                    fea_test_ls,
+                    fea_real_ls,
+                    fea_generated_ls,
+                    no_median_heuristic=False,
+                    N=10,
+                ):
+                    TST_MMD_kwargs = {
+                        # 'sigma': 1.0,
+                        "alpha": args.relative_test_alpha,
+                        "return_sigma": (not test_flag),
+                        "sigma_path": model_path
+                        + "/"
+                        + meta_save_model_flag
+                        + "relative_test_baseline_sigma.npy",
+                        "no_median_heuristic": no_median_heuristic,
+                    }
+                    return mmd_three_sample_base(
+                        fea_test_ls,
+                        fea_real_ls,
+                        fea_generated_ls,
+                        use_all_references=(args.relative_test_reference_mode == "all"),
+                        N=N,
+                        TST_MMD=TST_MMD_u_3S_Baseline,
+                        TST_MMD_kwargs=TST_MMD_kwargs,
                     )
 
                 p_value_ls = None
-
-                ## Get the p_value of the relative test
-                test_power_ls, p_value_ls, t_ls = mmd_three_sample(
-                    fea_test_ls, fea_real_ls, fea_generated_ls, N=N
-                )
+                if relative_test_baseline and not test_flag:
+                    test_power_ls, p_value_ls, t_ls, *relative_test_baseline_sigma = (
+                        mmd_three_sample_baseline(
+                            fea_test_ls, fea_real_ls, fea_generated_ls, N=N
+                        )
+                    )
+                if baseline:
+                    if args.relative_test_two_sample_mode == "normal":
+                        test_power_ls, p_value_ls, t_ls = mmd_two_sample_baseline(
+                            fea_test_ls, fea_real_ls, fea_generated_ls, N=N
+                        )
+                    elif args.relative_test_two_sample_mode == "permutation":
+                        test_power_ls, p_value_ls, t_ls = (
+                            mmd_two_sample_baseline_permutation(
+                                fea_test_ls, fea_real_ls, fea_generated_ls, N=N
+                            )
+                        )
+                elif relative_test_baseline and test_flag:
+                    test_power_ls, p_value_ls, t_ls = mmd_three_sample_baseline(
+                        fea_test_ls, fea_real_ls, fea_generated_ls, N=N
+                    )
+                elif relative_test_baseline_simple:
+                    test_power_ls, p_value_ls, t_ls = mmd_three_sample_baseline(
+                        fea_test_ls,
+                        fea_real_ls,
+                        fea_generated_ls,
+                        N=N,
+                        no_median_heuristic=True,
+                    )
+                elif relative_test_permutation:
+                    ## Get the p_value of the relative test
+                    test_power_ls, p_value_ls, t_ls = mmd_three_sample_permutation(
+                        fea_test_ls, fea_real_ls, fea_generated_ls, N=N
+                    )
+                elif relative_test:
+                    ## Get the p_value of the relative test
+                    test_power_ls, p_value_ls, t_ls = mmd_three_sample(
+                        fea_test_ls, fea_real_ls, fea_generated_ls, N=N
+                    )
+                else:
+                    ## Get the test power of the real and generated data pairs
+                    test_power_ls, t_ls = mmd_two_sample(
+                        fea_real_ls, fea_generated_ls, N=N
+                    )
 
                 ## Calculate p_value and/or avg_t
                 if p_value_ls:
@@ -2653,6 +3020,24 @@ if __name__ == "__main__":
         ## Code for different metrics
         if args.metric == "auroc" and args.MMDO_flag:
             ep = torch.ones(1).to("cuda", torch.float)
+        if not args.test_flag:
+            print("==> testing from the loaded checkpoint..")
+            num_target = len(fea_real) // test_lenth
+
+            power_ls = []
+            ## Get the test power of the real and generated data pairs
+            for i in range(num_target):
+                power = two_sample_test(
+                    0,
+                    fea_real_ls=fea_real[i * test_lenth : (i + 1) * test_lenth],
+                    fea_generated_ls=fea_generated[
+                        i * test_lenth : (i + 1) * test_lenth
+                    ],
+                    test_flag=True,
+                    N=10,
+                )
+                power_ls.append(power)
+            print("average power_value:", sum(power_ls) / len(power_ls))
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
         # Initialize parameters
@@ -2741,477 +3126,712 @@ if __name__ == "__main__":
         id = args.id
         start_epoch = 0
         auroc_value_best_epoch = 0
-        ## If the test flag is set, test the model only without training
-        epoch = 99
-        print("==> testing from checkpoint..")
-        model_path = f"./{PATH_exper}/HC3-{args.base_model_name}/{id}"
-        if not os.path.isdir(model_path):
-            model_path = f"./{PATH_exper}/HC3-gpt2/999"
-            print(f"Note you are loading {model_path}")
-        assert os.path.isdir(model_path), "Error: no checkpoint directory found!"
-        checkpoint = torch.load(model_path + "/" + "best_ckpt.pth")
-        net.load_state_dict(checkpoint["net"])
-        sigma, sigma0_u, ep = (
-            checkpoint["sigma"],
-            checkpoint["sigma0_u"],
-            checkpoint["ep"],
-        )
+        ## train/test the model
+        if not args.test_flag:
+            ## If the test flag is not set, train the model and test it
+            for epoch in range(start_epoch, start_epoch + epochs):
+                time0 = time.time()
 
-        # test(epoch)
-        def print_auroc_power(
-            all_power_list=all_power_list, all_auroc_list=all_auroc_list
-        ):
-            print(f"The best power list is {all_power_list}!")
-            print(f"The best auroc list is {all_auroc_list}!")
-            print(
-                f"avg_power: {avg_value(all_power_list)[0]} and std_power: {avg_value(all_power_list)[1]}"
-            )
-            print(
-                f"avg_auroc: {avg_value(all_auroc_list)[0]} and std_auroc: {avg_value(all_auroc_list)[1]}"
-            )
-
-        ## Assume test text is generated
-        power_genenrated = two_sample_test(
-            epoch,
-            fea_generated_ls=fea_test,
-            test_flag=True,
-            relative_test=False,
-        )
-        auroc_value_generated = single_instance_test(
-            epoch,
-            fea_real=val_sing_real,
-            fea_generated=fea_test_single,
-            test_flag=True,
-        )
-        test_power_list_generated.append(np.round(power_genenrated, 6))
-        test_auroc_list_generated.append(np.round(auroc_value_generated, 6))
-        ## Assume test text is real
-        power_real = two_sample_test(
-            epoch, fea_real_ls=fea_test, test_flag=True, relative_test=False
-        )
-        auroc_value_real = single_instance_test(
-            epoch,
-            fea_real=fea_test_single,
-            fea_generated=val_sing_generated,
-            test_flag=True,
-        )
-        test_power_list_real.append(np.round(power_real, 6))
-        test_auroc_list_real.append(np.round(auroc_value_real, 6))
-        if args.relative_test:
-            ## First, run two sample test baseline
-            start_time = time.time()
-            power_baseline, p_value_baseline, mmd_baseline = two_sample_test(
-                epoch,
-                fea_test_ls=fea_test,
-                test_flag=True,
-                baseline=True,
-                return_p_and_stat=True,
-                relative_test=False,
-            )
-            end_time = time.time()
-            baseline_time_list.append(np.round(end_time - start_time, 6))
-            baseline_power_list.append(np.round(power_baseline, 6))
-            baseline_p_value_list.append(np.round(p_value_baseline, 6))
-            baseline_mmd_list.append(np.round(mmd_baseline, 6))
-
-            if args.binoculars or args.output_test_text_file:
-                fea_test_ori_list_temp = []
-                for i in range(args.test_text_n_sample_rounds):
-                    if args.test_text_split:
-                        fea_test_ori_ls_temp = random.sample(
-                            fea_test_ori_ls, len(fea_test_ori_ls)
+                ## Shuffle the real and generated data
+                fea_train_real0 = fea_train_real0[
+                    np.random.permutation(fea_train_real0.shape[0])
+                ]
+                fea_train_generated0 = fea_train_generated0[
+                    np.random.permutation(fea_train_generated0.shape[0])
+                ]
+                if len(fea_train_real0) >= len(fea_train_generated0):
+                    for i in range(len(fea_train_real0) // len(fea_train_generated0)):
+                        ## If the length of the real data is larger than the generated data, slice the real data into batches to match the length of the generated data
+                        ## In order to balance the contribution of the real and generated data to the training
+                        fea_train_real = fea_train_real0[
+                            fea_train_generated0.shape[0]
+                            * i : fea_train_generated0.shape[0]
+                            * (i + 1)
+                        ]
+                        fea_train_generated = fea_train_generated0
+                        sigma, sigma0_u, ep = train(epoch)
+                else:
+                    ## If the length of the generated data is larger than the real data, slice the generated data into batches to match the length of the real data
+                    ## In order to balance the contribution of the real and generated data to the training
+                    for i in range(len(fea_train_generated0) // len(fea_train_real0)):
+                        fea_train_generated = fea_train_generated0[
+                            len(fea_train_real0) * i : len(fea_train_real0) * (i + 1)
+                        ]
+                        fea_train_real = fea_train_real0
+                        sigma, sigma0_u, ep = train(epoch)
+                ## Print the training time
+                print("train time:", time.time() - time0)
+                time0 = time.time()
+                ## Test the model
+                if (epoch + 1) % 1 == 0:
+                    ## Code for different metrics
+                    if args.metric == "power":
+                        ## in this case, we're using the two sample test, so set the test flag of single instance test to True, so we're not saving the model according to the single instance test
+                        power = two_sample_test(
+                            epoch,
+                            fea_real_ls=val_real,
+                            fea_generated_ls=val_generated,
+                            fea_test_ls=val_generated,
+                            N=10,
+                            test_flag=False,
+                            relative_test_baseline=args.relative_test_baseline,
+                        )
+                        auroc_value_epoch = single_instance_test(
+                            epoch,
+                            fea_real=val_sing_real,
+                            fea_generated=val_sing_generated,
+                            test_flag=True,
                         )
                     else:
-                        fea_test_ori_ls_temp = random.sample(
-                            fea_test_ori_ls[0], len(fea_test_ori_ls[0])
+                        power = two_sample_test(
+                            epoch,
+                            fea_real_ls=val_real,
+                            fea_generated_ls=val_generated,
+                            fea_test_ls=val_generated,
+                            N=10,
+                            test_flag=True,
                         )
-                    fea_test_ori = " ".join(
-                        paragraph for paragraph in fea_test_ori_ls_temp
-                    )
-                    fea_test_ori_list_temp.append(fea_test_ori)
-                fea_test_ori_list.append(fea_test_ori_list_temp)
+                        auroc_value_epoch = single_instance_test(
+                            epoch,
+                            fea_real=val_sing_real,
+                            fea_generated=val_sing_generated,
+                            test_flag=False,
+                        )
+                    if auroc_value_epoch > auroc_value_best_epoch:
+                        auroc_value_best_epoch = auroc_value_epoch
+                print("test time:", time.time() - time0)
 
-            ## Get the relative test p_value
-            start_time = time.time()
-            power, p_value, t = two_sample_test(
+            ## After training, test the model again
+            print("==> loading meta_best_model from checkpoint..")
+            model_path = f"./{PATH_exper}/HC3-{args.base_model_name}/{id}"
+            assert os.path.isdir(model_path), "Error: no checkpoint directory found!"
+            checkpoint = torch.load(model_path + "/" + "best_ckpt.pth")
+            net.load_state_dict(checkpoint["net"])
+            sigma, sigma0_u, ep = (
+                checkpoint["sigma"],
+                checkpoint["sigma0_u"],
+                checkpoint["ep"],
+            )
+            print("==> testing from the loaded checkpoint..")
+            power = two_sample_test(epoch, test_flag=True)
+            auroc_value = single_instance_test(
                 epoch,
-                fea_test_ls=fea_test,
+                fea_real=val_sing_real,
+                fea_generated=val_sing_generated,
                 test_flag=True,
-                return_p_and_stat=True,
-                relative_test_permutation=(args.relative_test_mode == "permutation"),
             )
-            end_time = time.time()
-            relative_test_time_list.append(np.round(end_time - start_time, 6))
-            relative_test_p_value_list.append(np.round(p_value, 6))
-            relative_test_t_stat_list.append(np.round(t, 6))
-            relative_test_power_list.append(np.round(power, 6))
-        ## Print the best power and auroc value of the model and the average and standard deviation of the power and auroc value if we're in the last trial
-        if current_trial == args.trial_num:
-            print(
-                "When assuming the test text is generated (comparing test text to ground truth real data):"
-            )
-            print_auroc_power(test_power_list_generated, test_auroc_list_generated)
-
-            print()
-
-            print(
-                "When assuming the test text is real (comparing test text to ground truth generated data):"
-            )
-            print_auroc_power(test_power_list_real, test_auroc_list_real)
-
-            if args.relative_test:
-                if len(set(answer_labels)) > 1:
-                    print()
-                    print("Ground-truth answer Labels:", answer_labels)
-
-                print()
-
-                ## First, print the two sample test baseline test results
-                # print(f"The mmd-mp baseline p_value list is {baseline_p_value_list}!")
-                print(f"The mmd-mp baseline mmd list is {baseline_mmd_list}!")
-                print(f"The mmd-mp baseline power list is {baseline_power_list}!")
-                if len(set(answer_labels)) > 1:
-                    baseline_power_hwt_list = [
-                        baseline_power_list[i]
-                        for i in range(len(baseline_power_list))
-                        if answer_labels[i] == 0
-                    ]
-                    baseline_power_mgt_list = [
-                        baseline_power_list[i]
-                        for i in range(len(baseline_power_list))
-                        if answer_labels[i] == 1
-                    ]
-                    print(
-                        f"The mmd-mp baseline power list for HWT is {baseline_power_hwt_list}!"
+            print("==> testing each model..")
+            for i in range(num_target):
+                ## Code for different metrics
+                if args.metric == "power":
+                    two_sample_test(
+                        0,
+                        fea_real_ls=fea_real[i * test_lenth : (i + 1) * test_lenth],
+                        fea_generated_ls=fea_generated[
+                            i * test_lenth : (i + 1) * test_lenth
+                        ],
+                        fea_test_ls=fea_generated[
+                            i * test_lenth : (i + 1) * test_lenth
+                        ],
+                        test_flag=True,
+                        N=10,
                     )
-                    print(
-                        f"The mmd-mp baseline power list for MGT is {baseline_power_mgt_list}!"
-                    )
-                    print(
-                        f"The mmd-mp baseline avg_power for HWT: {avg_value(baseline_power_hwt_list)[0]} and std_power: {avg_value(baseline_power_hwt_list)[1]}"
-                    )
-                    print(
-                        f"The mmd-mp baseline avg_power for MGT: {avg_value(baseline_power_mgt_list)[0]} and std_power: {avg_value(baseline_power_mgt_list)[1]}"
-                    )
-                    print(f"The mmd-mp baseline auroc stats:")
-                    process_p_values_and_labels_odd(
-                        answer_labels, baseline_p_value_list
-                    )
-                    (
-                        baseline_auroc_list,
-                        baseline_fpr_list,
-                        baseline_tpr_list,
-                    ) = process_p_values_and_labels(
-                        answer_labels, baseline_p_value_list
-                    )
-                    print(f"AUROC_LIST: {baseline_auroc_list}!")
-                    # print(f"FPR_LIST: {baseline_fpr_list}!")
-                    # print(f"TPR_LIST: {baseline_tpr_list}!")
                 else:
-                    print(
-                        f"The mmd-mp baseline avg_power: {avg_value(baseline_power_list)[0]} and std_power: {avg_value(baseline_power_list)[1]}"
+                    single_instance_test(
+                        0,
+                        fea_real=val_sing_real_ls[i][:1000],
+                        fea_generated=val_sing_generated_ls[i][:1000],
+                        test_flag=True,
                     )
-                print(f"The mmd-mp baseline time list is {baseline_time_list}!")
+
+            ## Print the best power and auroc value of the model
+            print(f"{id}'s best power is {power}!")
+            print(f"and the corresponding auroc is {auroc_value}!")
+            print(f"but the best auroc is {auroc_value_best_epoch}!")
+
+        else:
+            ## If the test flag is set, test the model only without training
+            epoch = 99
+            print("==> testing from checkpoint..")
+            model_path = f"./{PATH_exper}/HC3-{args.base_model_name}/{id}"
+            if not os.path.isdir(model_path):
+                model_path = f"./{PATH_exper}/HC3-gpt2/999"
+                print(f"Note you are loading {model_path}")
+            assert os.path.isdir(model_path), "Error: no checkpoint directory found!"
+            checkpoint = torch.load(model_path + "/" + "best_ckpt.pth")
+            net.load_state_dict(checkpoint["net"])
+            sigma, sigma0_u, ep = (
+                checkpoint["sigma"],
+                checkpoint["sigma0_u"],
+                checkpoint["ep"],
+            )
+
+            # test(epoch)
+            def print_auroc_power(
+                all_power_list=all_power_list, all_auroc_list=all_auroc_list
+            ):
+                print(f"The best power list is {all_power_list}!")
+                print(f"The best auroc list is {all_auroc_list}!")
                 print(
-                    f"The mmd-mp baseline total time is {np.sum(baseline_time_list)}!"
+                    f"avg_power: {avg_value(all_power_list)[0]} and std_power: {avg_value(all_power_list)[1]}"
+                )
+                print(
+                    f"avg_auroc: {avg_value(all_auroc_list)[0]} and std_auroc: {avg_value(all_auroc_list)[1]}"
                 )
 
-                if args.relative_test_baseline_simple:
-                    print()
+            if (
+                args.test_text is None
+                and args.test_text_file is None
+                and not args.relative_test
+            ):
+                if args.relative_test:
+                    power, p_value, t = two_sample_test(
+                        epoch, test_flag=True, return_p_and_stat=True
+                    )
+                    relative_test_p_value_list.append(np.round(p_value, 6))
+                    relative_test_t_stat_list.append(np.round(t, 6))
+                else:
+                    power = two_sample_test(epoch, test_flag=True)
+                auroc_value = single_instance_test(
+                    epoch,
+                    fea_real=val_sing_real,
+                    fea_generated=val_sing_generated,
+                    test_flag=True,
+                )
+                all_power_list.append(np.round(power, 6))
+                all_auroc_list.append(np.round(auroc_value, 6))
+                ## Print the best power and auroc value of the model and the average and standard deviation of the power and auroc value if we're in the last trial
+                if current_trial == args.trial_num:
+                    print_auroc_power()
+            else:
+                ## Assume test text is generated
+                power_genenrated = two_sample_test(
+                    epoch,
+                    fea_generated_ls=fea_test,
+                    test_flag=True,
+                    relative_test=False,
+                )
+                auroc_value_generated = single_instance_test(
+                    epoch,
+                    fea_real=val_sing_real,
+                    fea_generated=fea_test_single,
+                    test_flag=True,
+                )
+                test_power_list_generated.append(np.round(power_genenrated, 6))
+                test_auroc_list_generated.append(np.round(auroc_value_generated, 6))
+                ## Assume test text is real
+                power_real = two_sample_test(
+                    epoch, fea_real_ls=fea_test, test_flag=True, relative_test=False
+                )
+                auroc_value_real = single_instance_test(
+                    epoch,
+                    fea_real=fea_test_single,
+                    fea_generated=val_sing_generated,
+                    test_flag=True,
+                )
+                test_power_list_real.append(np.round(power_real, 6))
+                test_auroc_list_real.append(np.round(auroc_value_real, 6))
+                if args.relative_test:
+                    ## First, run two sample test baseline
+                    start_time = time.time()
+                    power_baseline, p_value_baseline, mmd_baseline = two_sample_test(
+                        epoch,
+                        fea_test_ls=fea_test,
+                        test_flag=True,
+                        baseline=True,
+                        return_p_and_stat=True,
+                        relative_test=False,
+                    )
+                    end_time = time.time()
+                    baseline_time_list.append(np.round(end_time - start_time, 6))
+                    baseline_power_list.append(np.round(power_baseline, 6))
+                    baseline_p_value_list.append(np.round(p_value_baseline, 6))
+                    baseline_mmd_list.append(np.round(mmd_baseline, 6))
 
-                    ## Then, print the relative baseline test results
-                    # print(f"The simple relative test baseline p_value list is {simple_relative_baseline_p_value_list}!")
-                    print(
-                        f"The simple relative test baseline t_stat list is {simple_relative_baseline_t_stat_list}!"
-                    )
-                    print(
-                        f"The simple relative test baseline power list is {simple_relative_baseline_power_list}!"
-                    )
-                    if len(set(answer_labels)) > 1:
-                        simple_relative_baseline_power_hwt_list = [
-                            simple_relative_baseline_power_list[i]
-                            for i in range(len(simple_relative_baseline_power_list))
-                            if answer_labels[i] == 0
-                        ]
-                        simple_relative_baseline_power_mgt_list = [
-                            simple_relative_baseline_power_list[i]
-                            for i in range(len(simple_relative_baseline_power_list))
-                            if answer_labels[i] == 1
-                        ]
-                        print(
-                            f"The simple relative test baseline power list for HWT is {simple_relative_baseline_power_hwt_list}!"
-                        )
-                        print(
-                            f"The simple relative test baseline power list for MGT is {simple_relative_baseline_power_mgt_list}!"
-                        )
-                        print(
-                            f"The simple relative test baseline avg_power for HWT: {avg_value(simple_relative_baseline_power_hwt_list)[0]} and std_power: {avg_value(simple_relative_baseline_power_hwt_list)[1]}"
-                        )
-                        print(
-                            f"The simple relative test baseline avg_power for MGT: {avg_value(simple_relative_baseline_power_mgt_list)[0]} and std_power: {avg_value(simple_relative_baseline_power_mgt_list)[1]}"
-                        )
-                        print("The simple relative test baseline auroc stats:")
-                        process_p_values_and_labels_odd(
-                            answer_labels, simple_relative_baseline_p_value_list
-                        )
+                    if args.relative_test_baseline_simple:
+                        ## Then, run simple relative test baseline
+                        start_time = time.time()
                         (
-                            simple_relative_baseline_auroc_list,
-                            simple_relative_baseline_fpr_list,
-                            simple_relative_baseline_tpr_list,
-                        ) = process_p_values_and_labels(
-                            answer_labels, simple_relative_baseline_p_value_list
+                            power_simple_relative_baseline,
+                            p_value_simple_relative_baseline,
+                            t_simple_relative_baseline,
+                        ) = two_sample_test(
+                            epoch,
+                            fea_test_ls=fea_test,
+                            test_flag=True,
+                            return_p_and_stat=True,
+                            relative_test=False,
+                            relative_test_baseline_simple=True,
                         )
-                        print(f"AUROC_LIST: {simple_relative_baseline_auroc_list}!")
-                        # print(f"FPR_LIST: {simple_relative_baseline_fpr_list}!")
-                        # print(f"TPR_LIST: {simple_relative_baseline_tpr_list}!")
-                    else:
-                        print(
-                            f"The simple relative test baseline avg_power: {avg_value(simple_relative_baseline_power_list)[0]} and std_power: {avg_value(simple_relative_baseline_power_list)[1]}"
+                        end_time = time.time()
+                        simple_relative_baseline_time_list.append(
+                            np.round(end_time - start_time, 6)
                         )
-                    print(
-                        f"The simple relative test baseline time list is {simple_relative_baseline_time_list}!"
-                    )
-                    print(
-                        f"The simple relative test baseline total time is {np.sum(simple_relative_baseline_time_list)}!"
-                    )
-
-                if args.relative_test_baseline:
-                    print()
-
-                    ## Then, print the relative baseline test results
-                    # print(f"The relative test baseline p_value list is {relative_baseline_p_value_list}!")
-                    print(
-                        f"The relative test baseline t_stat list is {relative_baseline_t_stat_list}!"
-                    )
-                    print(
-                        f"The relative test baseline power list is {relative_baseline_power_list}!"
-                    )
-                    if len(set(answer_labels)) > 1:
-                        relative_baseline_power_hwt_list = [
-                            relative_baseline_power_list[i]
-                            for i in range(len(relative_baseline_power_list))
-                            if answer_labels[i] == 0
-                        ]
-                        relative_baseline_power_mgt_list = [
-                            relative_baseline_power_list[i]
-                            for i in range(len(relative_baseline_power_list))
-                            if answer_labels[i] == 1
-                        ]
-                        print(
-                            f"The relative test baseline power list for HWT is {relative_baseline_power_hwt_list}!"
+                        simple_relative_baseline_p_value_list.append(
+                            np.round(p_value_simple_relative_baseline, 6)
                         )
-                        print(
-                            f"The relative test baseline power list for MGT is {relative_baseline_power_mgt_list}!"
+                        simple_relative_baseline_t_stat_list.append(
+                            np.round(t_simple_relative_baseline, 6)
                         )
-                        print(
-                            f"The relative test baseline avg_power for HWT: {avg_value(relative_baseline_power_hwt_list)[0]} and std_power: {avg_value(relative_baseline_power_hwt_list)[1]}"
+                        simple_relative_baseline_power_list.append(
+                            np.round(power_simple_relative_baseline, 6)
                         )
-                        print(
-                            f"The relative test baseline avg_power for MGT: {avg_value(relative_baseline_power_mgt_list)[0]} and std_power: {avg_value(relative_baseline_power_mgt_list)[1]}"
-                        )
-                        print("The relative test baseline auroc stats:")
-                        process_p_values_and_labels_odd(
-                            answer_labels, relative_baseline_p_value_list
-                        )
+                    if args.relative_test_baseline:
+                        ## Then, run relative test baseline
+                        start_time = time.time()
                         (
-                            relative_baseline_auroc_list,
-                            relative_baseline_fpr_list,
-                            relative_baseline_tpr_list,
-                        ) = process_p_values_and_labels(
-                            answer_labels, relative_baseline_p_value_list
+                            power_relative_baseline,
+                            p_value_relative_baseline,
+                            t_relative_baseline,
+                        ) = two_sample_test(
+                            epoch,
+                            fea_test_ls=fea_test,
+                            test_flag=True,
+                            relative_test_baseline=True,
+                            return_p_and_stat=True,
+                            relative_test=False,
                         )
-                        print(f"AUROC_LIST: {relative_baseline_auroc_list}!")
-                        # print(f"FPR_LIST: {relative_baseline_fpr_list}!")
-                        # print(f"TPR_LIST: {relative_baseline_tpr_list}!")
-                    else:
-                        print(
-                            f"The relative test baseline avg_power: {avg_value(relative_baseline_power_list)[0]} and std_power: {avg_value(relative_baseline_power_list)[1]}"
+                        end_time = time.time()
+                        relative_baseline_time_list.append(
+                            np.round(end_time - start_time, 6)
                         )
-                    print(
-                        f"The relative test baseline time list is {relative_baseline_time_list}!"
-                    )
-                    print(
-                        f"The relative test baseline total time is {np.sum(relative_baseline_time_list)}!"
-                    )
-
-                if fea_test_ori_list:
-                    ## Output the test_ori_list into a txt file for manual checking
-                    with open(
-                        f"./{PATH_exper}/HC3-{args.base_model_name}/{id}/test_data.txt",
-                        "w",
-                        encoding="utf-8",
-                    ) as file:
-                        for i, lst in enumerate(fea_test_ori_list):
-                            file.write(
-                                f"=== Trial {i + 1} {'('+ ('MGT' if answer_labels[i] else 'HWT') +')' if answer_labels else args.test_dataset_answer} ===\n"
-                            )
-                            for j, paragraph in enumerate(lst):
-                                file.write(f"--- Shuffle {j + 1} ---\n")
-                                file.write(repr(paragraph) + "\n")
-                                file.write("\n")
-                            file.write("\n")
-                            file.write("=" * 30 + "\n\n")
-                    ## Also output the test_ori_list into a csv file for other analysis
-                    with open(
-                        f"./{PATH_exper}/HC3-{args.base_model_name}/{id}/test_data.csv",
-                        "w",
-                        encoding="utf-8",
-                    ) as file:
-                        writer = csv.writer(file)
-                        writer.writerow(["trial", "shuffle", "label", "text"])
-                        for i, lst in enumerate(fea_test_ori_list):
-                            for j, paragraph in enumerate(lst):
-                                writer.writerow(
-                                    [
-                                        i,
-                                        j,
-                                        "MGT" if answer_labels[i] else "HWT",
-                                        repr(paragraph),
-                                    ]
+                        relative_baseline_p_value_list.append(
+                            np.round(p_value_relative_baseline, 6)
+                        )
+                        relative_baseline_t_stat_list.append(
+                            np.round(t_relative_baseline, 6)
+                        )
+                        relative_baseline_power_list.append(
+                            np.round(power_relative_baseline, 6)
+                        )
+                    if args.binoculars or args.output_test_text_file:
+                        fea_test_ori_list_temp = []
+                        for i in range(args.test_text_n_sample_rounds):
+                            if args.test_text_split:
+                                fea_test_ori_ls_temp = random.sample(
+                                    fea_test_ori_ls, len(fea_test_ori_ls)
                                 )
+                            else:
+                                fea_test_ori_ls_temp = random.sample(
+                                    fea_test_ori_ls[0], len(fea_test_ori_ls[0])
+                                )
+                            fea_test_ori = " ".join(
+                                paragraph for paragraph in fea_test_ori_ls_temp
+                            )
+                            fea_test_ori_list_temp.append(fea_test_ori)
+                        fea_test_ori_list.append(fea_test_ori_list_temp)
 
-                if args.binoculars:
+                    ## Get the relative test p_value
+                    start_time = time.time()
+                    power, p_value, t = two_sample_test(
+                        epoch,
+                        fea_test_ls=fea_test,
+                        test_flag=True,
+                        return_p_and_stat=True,
+                        relative_test_permutation=(
+                            args.relative_test_mode == "permutation"
+                        ),
+                    )
+                    end_time = time.time()
+                    relative_test_time_list.append(np.round(end_time - start_time, 6))
+                    relative_test_p_value_list.append(np.round(p_value, 6))
+                    relative_test_t_stat_list.append(np.round(t, 6))
+                    relative_test_power_list.append(np.round(power, 6))
+                ## Print the best power and auroc value of the model and the average and standard deviation of the power and auroc value if we're in the last trial
+                if current_trial == args.trial_num:
+                    print(
+                        "When assuming the test text is generated (comparing test text to ground truth real data):"
+                    )
+                    print_auroc_power(
+                        test_power_list_generated, test_auroc_list_generated
+                    )
+
                     print()
 
-                    ## Import Binoculars if the binoculars flag is set
-                    from Binoculars.binoculars import Binoculars
+                    print(
+                        "When assuming the test text is real (comparing test text to ground truth generated data):"
+                    )
+                    print_auroc_power(test_power_list_real, test_auroc_list_real)
 
-                    bino = Binoculars()
-                    ## Then, run binoculars
-                    for i in range(len(fea_test_ori_list)):
-                        fea_test_ori_list_temp = fea_test_ori_list[i]
-                        binoculars_p_value_list_temp = []
-                        binoculars_result_list_temp = []
-                        binoculars_time_list_temp = []
-                        for j in range(len(fea_test_ori_list_temp)):
-                            fea_test_ori = fea_test_ori_list_temp[j]
-                            start_time = time.time()
-                            score = bino.compute_score(fea_test_ori)
-                            end_time = time.time()
-                            result = (
-                                "HWT"
-                                if "human" in bino.predict(fea_test_ori)
-                                else "MGT"
-                            )
-                            binoculars_p_value_list_temp.append(score)
-                            binoculars_result_list_temp.append(result)
-                            binoculars_time_list_temp.append(end_time - start_time)
-                        binoculars_time_list.append(
-                            np.round(np.sum(binoculars_time_list_temp), 6)
-                        )
-                        binoculars_power_list.append(
-                            round(
-                                np.mean([p for p in binoculars_p_value_list_temp]),
-                                6,
-                            )
-                        )
-                        binoculars_p_value_list.append(binoculars_p_value_list_temp)
-                        ## Take the most frequent result as the final result
-                        binoculars_result_list.append(
-                            max(
-                                set(binoculars_result_list_temp),
-                                key=binoculars_result_list_temp.count,
-                            )
-                        )
-                    ## Print the binoculars test results
-                    print(f"The binoculars score list is {binoculars_power_list}!")
-                    print(f"The binoculars result list is {binoculars_result_list}!")
-                    if len(set(answer_labels)) > 1:
-                        binoculars_power_hwt_list = [
-                            binoculars_power_list[i]
-                            for i in range(len(binoculars_power_list))
-                            if answer_labels[i] == 0
-                        ]
-                        binoculars_power_mgt_list = [
-                            binoculars_power_list[i]
-                            for i in range(len(binoculars_power_list))
-                            if answer_labels[i] == 1
-                        ]
-                        print(
-                            f"The binoculars score list for HWT is {binoculars_power_hwt_list}!"
-                        )
-                        print(
-                            f"The binoculars score list for MGT is {binoculars_power_mgt_list}!"
-                        )
-                        print(
-                            f"The binoculars avg_score for HWT: {avg_value(binoculars_power_hwt_list)[0]} and std_score: {avg_value(binoculars_power_hwt_list)[1]}"
-                        )
-                        print(
-                            f"The binoculars avg_score for MGT: {avg_value(binoculars_power_mgt_list)[0]} and std_score: {avg_value(binoculars_power_mgt_list)[1]}"
-                        )
-                        process_p_values_and_labels_odd(
-                            answer_labels, binoculars_power_list
-                        )
-                        (
-                            binoculars_auroc_list,
-                            binoculars_fpr_list,
-                            binoculars_tpr_list,
-                        ) = process_p_values_and_labels(
-                            answer_labels, binoculars_power_list
-                        )
-                        print(f"AUROC_LIST: {binoculars_auroc_list}!")
-                        # print(f"FPR_LIST: {binoculars_fpr_list}!")
-                        # print(f"TPR_LIST: {binoculars_tpr_list}!")
-                    else:
-                        print(
-                            f"The binoculars avg_score: {avg_value(binoculars_power_list)[0]} and std_score: {avg_value(binoculars_power_list)[1]}"
-                        )
-                    print(f"The binoculars time list is {binoculars_time_list}!")
-                    print(
-                        f"The binoculars total time is {np.sum(binoculars_time_list)}!"
-                    )
+                    if args.relative_test:
+                        if len(set(answer_labels)) > 1:
+                            print()
+                            print("Ground-truth answer Labels:", answer_labels)
 
-                print()
+                        print()
 
-                ## Print the relative test p_value and lists
-                # print(f"The relative test p_value list is {relative_test_p_value_list}!")
-                print(f"The relative test t_stat list is {relative_test_t_stat_list}!")
-                print(f"The relative test power list is {relative_test_power_list}!")
-                if len(set(answer_labels)) > 1:
-                    relative_test_power_hwt_list = [
-                        relative_test_power_list[i]
-                        for i in range(len(relative_test_power_list))
-                        if answer_labels[i] == 0
-                    ]
-                    relative_test_power_mgt_list = [
-                        relative_test_power_list[i]
-                        for i in range(len(relative_test_power_list))
-                        if answer_labels[i] == 1
-                    ]
-                    print(
-                        f"The relative test power list for HWT is {relative_test_power_hwt_list}!"
-                    )
-                    print(
-                        f"The relative test power list for MGT is {relative_test_power_mgt_list}!"
-                    )
-                    print(
-                        f"The relative test avg_power for HWT: {avg_value(relative_test_power_hwt_list)[0]} and std_power: {avg_value(relative_test_power_hwt_list)[1]}"
-                    )
-                    print(
-                        f"The relative test avg_power for MGT: {avg_value(relative_test_power_mgt_list)[0]} and std_power: {avg_value(relative_test_power_mgt_list)[1]}"
-                    )
-                    print("The relative test auroc stats:")
-                    process_p_values_and_labels_odd(
-                        answer_labels, relative_test_p_value_list
-                    )
-                    (
-                        relative_test_auroc_list,
-                        relative_test_fpr_list,
-                        relative_test_tpr_list,
-                    ) = process_p_values_and_labels(
-                        answer_labels, relative_test_p_value_list
-                    )
-                    print(f"AUROC_LIST: {relative_test_auroc_list}!")
-                    # print(f"FPR_LIST: {relative_test_fpr_list}!")
-                    # print(f"TPR_LIST: {relative_test_tpr_list}!")
-                else:
-                    print(
-                        f"The relative test avg_power: {avg_value(relative_test_power_list)[0]} and std_power: {avg_value(relative_test_power_list)[1]}"
-                    )
-                print(f"The relative test time list is {relative_test_time_list}!")
-                print(
-                    f"The relative test total time is {np.sum(relative_test_time_list)}!"
-                )
+                        ## First, print the two sample test baseline test results
+                        # print(f"The mmd-mp baseline p_value list is {baseline_p_value_list}!")
+                        print(f"The mmd-mp baseline mmd list is {baseline_mmd_list}!")
+                        print(
+                            f"The mmd-mp baseline power list is {baseline_power_list}!"
+                        )
+                        if len(set(answer_labels)) > 1:
+                            baseline_power_hwt_list = [
+                                baseline_power_list[i]
+                                for i in range(len(baseline_power_list))
+                                if answer_labels[i] == 0
+                            ]
+                            baseline_power_mgt_list = [
+                                baseline_power_list[i]
+                                for i in range(len(baseline_power_list))
+                                if answer_labels[i] == 1
+                            ]
+                            print(
+                                f"The mmd-mp baseline power list for HWT is {baseline_power_hwt_list}!"
+                            )
+                            print(
+                                f"The mmd-mp baseline power list for MGT is {baseline_power_mgt_list}!"
+                            )
+                            print(
+                                f"The mmd-mp baseline avg_power for HWT: {avg_value(baseline_power_hwt_list)[0]} and std_power: {avg_value(baseline_power_hwt_list)[1]}"
+                            )
+                            print(
+                                f"The mmd-mp baseline avg_power for MGT: {avg_value(baseline_power_mgt_list)[0]} and std_power: {avg_value(baseline_power_mgt_list)[1]}"
+                            )
+                            print(f"The mmd-mp baseline auroc stats:")
+                            process_p_values_and_labels_odd(
+                                answer_labels, baseline_p_value_list
+                            )
+                            (
+                                baseline_auroc_list,
+                                baseline_fpr_list,
+                                baseline_tpr_list,
+                            ) = process_p_values_and_labels(
+                                answer_labels, baseline_p_value_list
+                            )
+                            print(f"AUROC_LIST: {baseline_auroc_list}!")
+                            # print(f"FPR_LIST: {baseline_fpr_list}!")
+                            # print(f"TPR_LIST: {baseline_tpr_list}!")
+                        else:
+                            print(
+                                f"The mmd-mp baseline avg_power: {avg_value(baseline_power_list)[0]} and std_power: {avg_value(baseline_power_list)[1]}"
+                            )
+                        print(f"The mmd-mp baseline time list is {baseline_time_list}!")
+                        print(
+                            f"The mmd-mp baseline total time is {np.sum(baseline_time_list)}!"
+                        )
+
+                        if args.relative_test_baseline_simple:
+                            print()
+
+                            ## Then, print the relative baseline test results
+                            # print(f"The simple relative test baseline p_value list is {simple_relative_baseline_p_value_list}!")
+                            print(
+                                f"The simple relative test baseline t_stat list is {simple_relative_baseline_t_stat_list}!"
+                            )
+                            print(
+                                f"The simple relative test baseline power list is {simple_relative_baseline_power_list}!"
+                            )
+                            if len(set(answer_labels)) > 1:
+                                simple_relative_baseline_power_hwt_list = [
+                                    simple_relative_baseline_power_list[i]
+                                    for i in range(
+                                        len(simple_relative_baseline_power_list)
+                                    )
+                                    if answer_labels[i] == 0
+                                ]
+                                simple_relative_baseline_power_mgt_list = [
+                                    simple_relative_baseline_power_list[i]
+                                    for i in range(
+                                        len(simple_relative_baseline_power_list)
+                                    )
+                                    if answer_labels[i] == 1
+                                ]
+                                print(
+                                    f"The simple relative test baseline power list for HWT is {simple_relative_baseline_power_hwt_list}!"
+                                )
+                                print(
+                                    f"The simple relative test baseline power list for MGT is {simple_relative_baseline_power_mgt_list}!"
+                                )
+                                print(
+                                    f"The simple relative test baseline avg_power for HWT: {avg_value(simple_relative_baseline_power_hwt_list)[0]} and std_power: {avg_value(simple_relative_baseline_power_hwt_list)[1]}"
+                                )
+                                print(
+                                    f"The simple relative test baseline avg_power for MGT: {avg_value(simple_relative_baseline_power_mgt_list)[0]} and std_power: {avg_value(simple_relative_baseline_power_mgt_list)[1]}"
+                                )
+                                print("The simple relative test baseline auroc stats:")
+                                process_p_values_and_labels_odd(
+                                    answer_labels, simple_relative_baseline_p_value_list
+                                )
+                                (
+                                    simple_relative_baseline_auroc_list,
+                                    simple_relative_baseline_fpr_list,
+                                    simple_relative_baseline_tpr_list,
+                                ) = process_p_values_and_labels(
+                                    answer_labels, simple_relative_baseline_p_value_list
+                                )
+                                print(
+                                    f"AUROC_LIST: {simple_relative_baseline_auroc_list}!"
+                                )
+                                # print(f"FPR_LIST: {simple_relative_baseline_fpr_list}!")
+                                # print(f"TPR_LIST: {simple_relative_baseline_tpr_list}!")
+                            else:
+                                print(
+                                    f"The simple relative test baseline avg_power: {avg_value(simple_relative_baseline_power_list)[0]} and std_power: {avg_value(simple_relative_baseline_power_list)[1]}"
+                                )
+                            print(
+                                f"The simple relative test baseline time list is {simple_relative_baseline_time_list}!"
+                            )
+                            print(
+                                f"The simple relative test baseline total time is {np.sum(simple_relative_baseline_time_list)}!"
+                            )
+
+                        if args.relative_test_baseline:
+                            print()
+
+                            ## Then, print the relative baseline test results
+                            # print(f"The relative test baseline p_value list is {relative_baseline_p_value_list}!")
+                            print(
+                                f"The relative test baseline t_stat list is {relative_baseline_t_stat_list}!"
+                            )
+                            print(
+                                f"The relative test baseline power list is {relative_baseline_power_list}!"
+                            )
+                            if len(set(answer_labels)) > 1:
+                                relative_baseline_power_hwt_list = [
+                                    relative_baseline_power_list[i]
+                                    for i in range(len(relative_baseline_power_list))
+                                    if answer_labels[i] == 0
+                                ]
+                                relative_baseline_power_mgt_list = [
+                                    relative_baseline_power_list[i]
+                                    for i in range(len(relative_baseline_power_list))
+                                    if answer_labels[i] == 1
+                                ]
+                                print(
+                                    f"The relative test baseline power list for HWT is {relative_baseline_power_hwt_list}!"
+                                )
+                                print(
+                                    f"The relative test baseline power list for MGT is {relative_baseline_power_mgt_list}!"
+                                )
+                                print(
+                                    f"The relative test baseline avg_power for HWT: {avg_value(relative_baseline_power_hwt_list)[0]} and std_power: {avg_value(relative_baseline_power_hwt_list)[1]}"
+                                )
+                                print(
+                                    f"The relative test baseline avg_power for MGT: {avg_value(relative_baseline_power_mgt_list)[0]} and std_power: {avg_value(relative_baseline_power_mgt_list)[1]}"
+                                )
+                                print("The relative test baseline auroc stats:")
+                                process_p_values_and_labels_odd(
+                                    answer_labels, relative_baseline_p_value_list
+                                )
+                                (
+                                    relative_baseline_auroc_list,
+                                    relative_baseline_fpr_list,
+                                    relative_baseline_tpr_list,
+                                ) = process_p_values_and_labels(
+                                    answer_labels, relative_baseline_p_value_list
+                                )
+                                print(f"AUROC_LIST: {relative_baseline_auroc_list}!")
+                                # print(f"FPR_LIST: {relative_baseline_fpr_list}!")
+                                # print(f"TPR_LIST: {relative_baseline_tpr_list}!")
+                            else:
+                                print(
+                                    f"The relative test baseline avg_power: {avg_value(relative_baseline_power_list)[0]} and std_power: {avg_value(relative_baseline_power_list)[1]}"
+                                )
+                            print(
+                                f"The relative test baseline time list is {relative_baseline_time_list}!"
+                            )
+                            print(
+                                f"The relative test baseline total time is {np.sum(relative_baseline_time_list)}!"
+                            )
+
+                        if fea_test_ori_list:
+                            ## Output the test_ori_list into a txt file for manual checking
+                            with open(
+                                f"./{PATH_exper}/HC3-{args.base_model_name}/{id}/test_data.txt",
+                                "w",
+                                encoding="utf-8",
+                            ) as file:
+                                for i, lst in enumerate(fea_test_ori_list):
+                                    file.write(
+                                        f"=== Trial {i + 1} {'('+ ('MGT' if answer_labels[i] else 'HWT') +')' if answer_labels else args.test_dataset_answer} ===\n"
+                                    )
+                                    for j, paragraph in enumerate(lst):
+                                        file.write(f"--- Shuffle {j + 1} ---\n")
+                                        file.write(repr(paragraph) + "\n")
+                                        file.write("\n")
+                                    file.write("\n")
+                                    file.write("=" * 30 + "\n\n")
+                            ## Also output the test_ori_list into a csv file for other analysis
+                            with open(
+                                f"./{PATH_exper}/HC3-{args.base_model_name}/{id}/test_data.csv",
+                                "w",
+                                encoding="utf-8",
+                            ) as file:
+                                writer = csv.writer(file)
+                                writer.writerow(["trial", "shuffle", "label", "text"])
+                                for i, lst in enumerate(fea_test_ori_list):
+                                    for j, paragraph in enumerate(lst):
+                                        writer.writerow(
+                                            [
+                                                i,
+                                                j,
+                                                "MGT" if answer_labels[i] else "HWT",
+                                                repr(paragraph),
+                                            ]
+                                        )
+
+                        if args.binoculars:
+                            print()
+
+                            ## Import Binoculars if the binoculars flag is set
+                            from Binoculars.binoculars import Binoculars
+
+                            bino = Binoculars()
+                            ## Then, run binoculars
+                            for i in range(len(fea_test_ori_list)):
+                                fea_test_ori_list_temp = fea_test_ori_list[i]
+                                binoculars_p_value_list_temp = []
+                                binoculars_result_list_temp = []
+                                binoculars_time_list_temp = []
+                                for j in range(len(fea_test_ori_list_temp)):
+                                    fea_test_ori = fea_test_ori_list_temp[j]
+                                    start_time = time.time()
+                                    score = bino.compute_score(fea_test_ori)
+                                    end_time = time.time()
+                                    result = (
+                                        "HWT"
+                                        if "human" in bino.predict(fea_test_ori)
+                                        else "MGT"
+                                    )
+                                    binoculars_p_value_list_temp.append(score)
+                                    binoculars_result_list_temp.append(result)
+                                    binoculars_time_list_temp.append(
+                                        end_time - start_time
+                                    )
+                                binoculars_time_list.append(
+                                    np.round(np.sum(binoculars_time_list_temp), 6)
+                                )
+                                binoculars_power_list.append(
+                                    round(
+                                        np.mean(
+                                            [p for p in binoculars_p_value_list_temp]
+                                        ),
+                                        6,
+                                    )
+                                )
+                                binoculars_p_value_list.append(
+                                    binoculars_p_value_list_temp
+                                )
+                                ## Take the most frequent result as the final result
+                                binoculars_result_list.append(
+                                    max(
+                                        set(binoculars_result_list_temp),
+                                        key=binoculars_result_list_temp.count,
+                                    )
+                                )
+                            ## Print the binoculars test results
+                            print(
+                                f"The binoculars score list is {binoculars_power_list}!"
+                            )
+                            print(
+                                f"The binoculars result list is {binoculars_result_list}!"
+                            )
+                            if len(set(answer_labels)) > 1:
+                                binoculars_power_hwt_list = [
+                                    binoculars_power_list[i]
+                                    for i in range(len(binoculars_power_list))
+                                    if answer_labels[i] == 0
+                                ]
+                                binoculars_power_mgt_list = [
+                                    binoculars_power_list[i]
+                                    for i in range(len(binoculars_power_list))
+                                    if answer_labels[i] == 1
+                                ]
+                                print(
+                                    f"The binoculars score list for HWT is {binoculars_power_hwt_list}!"
+                                )
+                                print(
+                                    f"The binoculars score list for MGT is {binoculars_power_mgt_list}!"
+                                )
+                                print(
+                                    f"The binoculars avg_score for HWT: {avg_value(binoculars_power_hwt_list)[0]} and std_score: {avg_value(binoculars_power_hwt_list)[1]}"
+                                )
+                                print(
+                                    f"The binoculars avg_score for MGT: {avg_value(binoculars_power_mgt_list)[0]} and std_score: {avg_value(binoculars_power_mgt_list)[1]}"
+                                )
+                                process_p_values_and_labels_odd(
+                                    answer_labels, binoculars_power_list
+                                )
+                                (
+                                    binoculars_auroc_list,
+                                    binoculars_fpr_list,
+                                    binoculars_tpr_list,
+                                ) = process_p_values_and_labels(
+                                    answer_labels, binoculars_power_list
+                                )
+                                print(f"AUROC_LIST: {binoculars_auroc_list}!")
+                                # print(f"FPR_LIST: {binoculars_fpr_list}!")
+                                # print(f"TPR_LIST: {binoculars_tpr_list}!")
+                            else:
+                                print(
+                                    f"The binoculars avg_score: {avg_value(binoculars_power_list)[0]} and std_score: {avg_value(binoculars_power_list)[1]}"
+                                )
+                            print(
+                                f"The binoculars time list is {binoculars_time_list}!"
+                            )
+                            print(
+                                f"The binoculars total time is {np.sum(binoculars_time_list)}!"
+                            )
+
+                        print()
+
+                        ## Print the relative test p_value and lists
+                        # print(f"The relative test p_value list is {relative_test_p_value_list}!")
+                        print(
+                            f"The relative test t_stat list is {relative_test_t_stat_list}!"
+                        )
+                        print(
+                            f"The relative test power list is {relative_test_power_list}!"
+                        )
+                        if len(set(answer_labels)) > 1:
+                            relative_test_power_hwt_list = [
+                                relative_test_power_list[i]
+                                for i in range(len(relative_test_power_list))
+                                if answer_labels[i] == 0
+                            ]
+                            relative_test_power_mgt_list = [
+                                relative_test_power_list[i]
+                                for i in range(len(relative_test_power_list))
+                                if answer_labels[i] == 1
+                            ]
+                            print(
+                                f"The relative test power list for HWT is {relative_test_power_hwt_list}!"
+                            )
+                            print(
+                                f"The relative test power list for MGT is {relative_test_power_mgt_list}!"
+                            )
+                            print(
+                                f"The relative test avg_power for HWT: {avg_value(relative_test_power_hwt_list)[0]} and std_power: {avg_value(relative_test_power_hwt_list)[1]}"
+                            )
+                            print(
+                                f"The relative test avg_power for MGT: {avg_value(relative_test_power_mgt_list)[0]} and std_power: {avg_value(relative_test_power_mgt_list)[1]}"
+                            )
+                            print("The relative test auroc stats:")
+                            process_p_values_and_labels_odd(
+                                answer_labels, relative_test_p_value_list
+                            )
+                            (
+                                relative_test_auroc_list,
+                                relative_test_fpr_list,
+                                relative_test_tpr_list,
+                            ) = process_p_values_and_labels(
+                                answer_labels, relative_test_p_value_list
+                            )
+                            print(f"AUROC_LIST: {relative_test_auroc_list}!")
+                            # print(f"FPR_LIST: {relative_test_fpr_list}!")
+                            # print(f"TPR_LIST: {relative_test_tpr_list}!")
+                        else:
+                            print(
+                                f"The relative test avg_power: {avg_value(relative_test_power_list)[0]} and std_power: {avg_value(relative_test_power_list)[1]}"
+                            )
+                        print(
+                            f"The relative test time list is {relative_test_time_list}!"
+                        )
+                        print(
+                            f"The relative test total time is {np.sum(relative_test_time_list)}!"
+                        )
 
     current_time_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print("==========", "Script Ended:", current_time_str, "==========")
