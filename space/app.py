@@ -9,8 +9,8 @@ init_random_seeds()
 def detect_function(input_text):
     if not input_text:
         return "Now that you've built a demo, you'll probably want to share it with others. Gradio demos can be shared in two ways: using a temporary share link or permanent hosting on Spaces."
-    # return two_sample_tester.test(input_text.strip())
-    return relative_tester.test(input_text.strip())
+    return two_sample_tester.test(input_text.strip())
+    # return relative_tester.test(input_text.strip())
 
 
 with gr.Blocks() as demo:
