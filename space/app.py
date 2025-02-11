@@ -13,7 +13,7 @@ def run_test(input_text):
     # return relative_tester.test(input_text.strip())
     return f"Prediction: Human (Mocked for {input_text})"
 
-
+# TODO: Add model selection in the future
 # Change mode name
 # def change_mode(mode):
 #    if mode == "Faster Model":
@@ -30,11 +30,11 @@ def run_test(input_text):
 css = """
 #header { text-align: center; font-size: 3em; margin-bottom: 20px; }
 #output-text { font-weight: bold; font-size: 1.2em; }
-.links { 
-    display: flex; 
-    justify-content: flex-end; 
-    gap: 10px; 
-    margin-right: 10px; 
+.links {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-right: 10px;
     align-items: center;
 }
 .separator {
@@ -115,6 +115,7 @@ with gr.Blocks(css=css) as app:
             elem_classes=["output-text"],
         )
     with gr.Row():
+        # TODO: Add model selection in the future
         # model_name = gr.Dropdown(
         #     [
         #         "Faster Model",
