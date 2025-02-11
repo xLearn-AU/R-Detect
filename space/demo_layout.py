@@ -2,7 +2,7 @@ import gradio as gr
 import spaces
 
 
-# TOKENIZER = 
+# TOKENIZER =
 # MINIMUM_TOKENS = 64
 
 # def count_tokens(text):
@@ -14,9 +14,8 @@ def run_test_power(model_name, real_text, generated_text, N=10):
     return f"Prediction: Human (Mocked for {model_name})"
 
 
-
 # Change mode name
-#def change_mode(mode):
+# def change_mode(mode):
 #    if mode == "Faster Model":
 #        .change_mode("t5-small")
 #    elif mode == "Medium Model":
@@ -26,7 +25,6 @@ def run_test_power(model_name, real_text, generated_text, N=10):
 #    else:
 #        gr.Error(f"Invaild mode selected.")
 #    return mode
-
 
 
 css = """
@@ -91,7 +89,8 @@ with gr.Blocks(css=css) as app:
     with gr.Row():
         gr.HTML('<div id="header">R-detect On HuggingFace</div>')
     with gr.Row():
-        gr.HTML("""
+        gr.HTML(
+            """
         <div class="links">
             <a href="https://openreview.net/forum?id=z9j7wctoGV" target="_blank">Paper</a>
             <span class="separator">|</span>
@@ -99,7 +98,8 @@ with gr.Blocks(css=css) as app:
             <span class="separator">|</span>
             <a href="mailto:1730421718@qq.com" target="_blank">Contact</a>
         </div>
-        """)
+        """
+        )
     with gr.Row():
         input_text = gr.Textbox(
             label="Input Text",
@@ -125,20 +125,27 @@ with gr.Blocks(css=css) as app:
             value="Medium Model",
             elem_classes=["select"],
         )
-        submit_button = gr.Button("Run Detection", variant="primary", elem_classes=["button"])
+        submit_button = gr.Button(
+            "Run Detection", variant="primary", elem_classes=["button"]
+        )
         clear_button = gr.Button("Clear", variant="secondary", elem_classes=["button"])
-    
-    submit_button.click(run_test_power, inputs=[model_name, input_text, input_text], outputs=output)
+
+    submit_button.click(
+        run_test_power, inputs=[model_name, input_text, input_text], outputs=output
+    )
     clear_button.click(lambda: ("", ""), inputs=[], outputs=[input_text, output])
 
     with gr.Accordion("Disclaimer", open=False, elem_classes=["accordion"]):
-        gr.Markdown("""
+        gr.Markdown(
+            """
         - **Disclaimer**: This tool is for demonstration purposes only. It is not a foolproof AI detector.
         - **Accuracy**: Results may vary based on input length and quality.
-        """)
+        """
+        )
 
     with gr.Accordion("Citations", open=False, elem_classes=["accordion"]):
-        gr.Markdown("""
+        gr.Markdown(
+            """
         ```
         @inproceedings{zhangs2024MMDMP,
             title={Detecting Machine-Generated Texts by Multi-Population Aware Optimization for Maximum Mean Discrepancy},
@@ -147,6 +154,7 @@ with gr.Blocks(css=css) as app:
             year={2024}
         }
         ```
-        """)
+        """
+        )
 
 app.launch()
