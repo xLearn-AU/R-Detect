@@ -37,19 +37,16 @@ class RelativeTester:
         )
         # Calculate MMD
         h_u, p_value, t, *rest = MMD_3_Sample_Test(
-            net(feature_for_input_text[:min_len]),
-            net(feature_hwt_ref[torch.randperm(len(feature_hwt_ref))[:min_len]]),
-            net(feature_mgt_ref[torch.randperm(len(feature_mgt_ref))[:min_len]]),
+            net.net(feature_for_input_text[:min_len]),
+            net.net(feature_hwt_ref[torch.randperm(len(feature_hwt_ref))[:min_len]]),
+            net.net(feature_mgt_ref[torch.randperm(len(feature_mgt_ref))[:min_len]]),
             feature_for_input_text.view(feature_for_input_text.shape[0], -1),
             feature_hwt_ref.view(feature_hwt_ref.shape[0], -1),
             feature_mgt_ref.view(feature_mgt_ref.shape[0], -1),
-            # { # TODO: params
-            #     "sigma": sigma,
-            #     "sigma0": sigma0_u,
-            #     "epsilon": ep,
-            #     "alpha": alpha,
-            #     "is_smooth": True,
-            # },
+            net.sigma,
+            net.sigma0_u,
+            net.ep,
+            0.05,
         )
         # Return the result
         return "Human" if p_value > alpha else "AI"
