@@ -27,7 +27,7 @@ class FeatureExtractor:
         self.model = model  # TODO: support different models
         self.net = net
 
-    def process(self, text):
+    def process(self, text, net_required=True):
         # Tokenize
         tokens = self.model.tokenizer(
             [text],
@@ -43,5 +43,8 @@ class FeatureExtractor:
         hidden_states_masked = (
             outputs.last_hidden_state * attention_mask
         )  # Ignore the padding tokens
-        feature = self.net.net(hidden_states_masked)
-        return feature
+        if net_required:
+            feature = self.net.net(hidden_states_masked)
+            return feature
+        else:
+            return hidden_states_masked

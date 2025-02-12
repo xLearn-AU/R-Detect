@@ -1,6 +1,6 @@
 import torch
 from roberta_model_loader import roberta_model
-from feature_ref_loader import feature_ref
+from feature_ref_loader import feature_hwt_ref
 from meta_train import net
 from regression_model_loader import regression_model
 from MMD import MMD_batch2
@@ -21,8 +21,8 @@ class TwoSampleTester:
 
         # Calculate MMD
         mmd_feature_for_input_text = MMD_batch2(
-            torch.cat([feature_ref.test_feature_ref, feature_for_input_text], dim=0),
-            feature_ref.test_feature_ref.shape[0],
+            torch.cat([feature_hwt_ref, feature_for_input_text], dim=0),
+            feature_hwt_ref.shape[0],
             0,
             self.net.sigma,
             self.net.sigma0_u,
