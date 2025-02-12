@@ -7,6 +7,9 @@ DEVICE = torch.device("cpu")
 if gpu_using:
     DEVICE = torch.device("cuda:0")
 
+HWT = 'HWT'
+MGT = 'MGT'
+
 
 def init_random_seeds():
     print("Init random seeds")
