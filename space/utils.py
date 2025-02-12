@@ -7,8 +7,8 @@ DEVICE = torch.device("cpu")
 if gpu_using:
     DEVICE = torch.device("cuda:0")
 
-HWT = 'HWT'
-MGT = 'MGT'
+HWT = "HWT"
+MGT = "MGT"
 
 
 def init_random_seeds():
@@ -24,11 +24,10 @@ def init_random_seeds():
 
 class FeatureExtractor:
     def __init__(self, model, net):
-        self.model = model # TODO: support different models
+        self.model = model  # TODO: support different models
         self.net = net
 
     def process(self, text):
-        print("Feature Extractor process")
         # Tokenize
         tokens = self.model.tokenizer(
             [text],
@@ -40,9 +39,9 @@ class FeatureExtractor:
         # Predict
         outputs = self.model.model(**tokens)
         # Get the feature for input text
-        token_mask_10 = tokens["attention_mask"].unsqueeze(-1)
-        hidden_states_mask_10 = (
-            outputs.last_hidden_state * token_mask_10
-        )  # TODO: why we need this?
-        feature = self.net.net(hidden_states_mask_10)
+        attention_mask = tokens["attention_mask"].unsqueeze(-1)
+        hidden_states_masked = (
+            outputs.last_hidden_state * attention_mask
+        )  # Ignore the padding tokens
+        feature = self.net.net(hidden_states_masked)
         return feature

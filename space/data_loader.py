@@ -65,7 +65,7 @@ def load_HC3():
 
     data_new = {"text": [], "label": []}
 
-    for i in tqdm.tqdm(range(len(filtered_ds)), desc="parsing data"):
+    for i in tqdm.tqdm(range(len(filtered_ds)), desc="Parsing data"):
         data_new["text"].append(process_spaces(filtered_ds[i]["human_answers"][0]))
         data_new["label"].append(HWT)
         data_new["text"].append(process_spaces(filtered_ds[i]["chatgpt_answers"][0]))
@@ -119,9 +119,10 @@ def filter_data(data_o, long_train_threshold_low=150, long_train_threshold_high=
     return data
 
 
-data_o = load_HC3()
-data = filter_data(data_o)
-real = data[HWT]  # [:args.train_real_num]  len== n_samples, many sentences of words
-generated = data[MGT]
-print(real[:5])
+# Test code
+# data_o = load_HC3()
+# data = filter_data(data_o)
+# real = data[HWT]  # [:args.train_real_num]  len== n_samples, many sentences of words
+# generated = data[MGT]
+# print(real[:5])
 # print(generated[:5])
