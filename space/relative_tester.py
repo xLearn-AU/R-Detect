@@ -16,10 +16,10 @@ class RelativeTester:
     def sents_split(self, text):
         nltk.download("punkt", quiet=True)
         nltk.download("punkt_tab", quiet=True)
-        sents = nltk.sent_tokenize(text)[1:-1]
+        sents = nltk.sent_tokenize(text)
         return [sent for sent in sents if 5 < len(sent.split())]
 
-    def test(self, input_text, alpha=0.05, round=100):
+    def test(self, input_text, threshold=0.2, round=20):
         print("Relative Tester test")
         # Split the input text
         sents = self.sents_split(input_text)
@@ -27,7 +27,8 @@ class RelativeTester:
         # Extract features
         feature_for_sents = self.feature_extractor.process_sents(sents, False)
         if len(feature_for_sents) <= 1:
-            return "Too short to test! Please input more than 2 paragraphs."
+            # print("DEBUG: tooshort")
+            return "Too short to test! Please input more than 2 sentences."
         # Cutoff the features
         min_len = min(
             len(feature_for_sents),
@@ -66,10 +67,11 @@ class RelativeTester:
             p_value_list.append(p_value)
             t_list.append(t)
 
-        p_value = sum(p_value_list) / len(p_value_list)
-        print("DEBUG: p_value:", p_value)
+        power = sum(h_u_list) / len(h_u_list)
+        print("DEBUG: power:", power)
+        print("DEBUG: power list:", h_u_list)
         # Return the result
-        return "Human" if p_value > alpha else "AI"
+        return "Human" if power <= threshold else "AI"
 
 
 relative_tester = RelativeTester()
