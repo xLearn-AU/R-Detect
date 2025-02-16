@@ -1,6 +1,6 @@
 import gradio as gr
-# from relative_tester import relative_tester
-from two_sample_tester import two_sample_tester
+from relative_tester import relative_tester
+# from two_sample_tester import two_sample_tester
 from utils import init_random_seeds
 
 init_random_seeds()
@@ -9,8 +9,8 @@ init_random_seeds()
 def run_test(input_text):
     if not input_text:
         return "Now that you've built a demo, you'll probably want to share it with others. Gradio demos can be shared in two ways: using a temporary share link or permanent hosting on Spaces."
-    return two_sample_tester.test(input_text.strip())
-    # return relative_tester.test(input_text.strip())
+    # return two_sample_tester.test(input_text.strip())
+    return relative_tester.test(input_text.strip())
     return f"Prediction: Human (Mocked for {input_text})"
 
 # TODO: Add model selection in the future

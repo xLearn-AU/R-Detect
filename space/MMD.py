@@ -19,7 +19,6 @@ def MMD_Diff_Var(Kyy, Kzz, Kxy, Kxz, epsilon=1e-08):
     n = Kyy.shape[0]
     r = Kzz.shape[0]
 
-
     # Remove diagonal elements
     Kyynd = Kyy - torch.diag(torch.diag(Kyy))
     Kzznd = Kzz - torch.diag(torch.diag(Kzz))
@@ -139,8 +138,6 @@ def MMD_3_Sample_Test(
     X_org = ref_fea_org.clone().detach()
     Y_org = fea_y_org.clone().detach()
     Z_org = fea_z_org.clone().detach()
-
-    print("DEBUG", Kyy.shape, Kzz.shape, Kxy.shape, Kxz.shape)
 
     Kyy = flexible_kernel(Y, Y, Y_org, Y_org, sigma, sigma0, epsilon)
     Kzz = flexible_kernel(Z, Z, Z_org, Z_org, sigma, sigma0, epsilon)

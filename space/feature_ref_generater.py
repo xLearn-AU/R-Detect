@@ -22,14 +22,14 @@ data = data[target]
 # split with nltk
 nltk.download("punkt", quiet=True)
 nltk.download("punkt_tab", quiet=True)
-sents_token = [nltk.sent_tokenize(text)[1:-1] for text in data]
-data = [
-    sent for paragraph in sents_token for sent in paragraph if 5 < len(sent.split())
-]
+paragraphs = [nltk.sent_tokenize(paragraph)[1:-1] for paragraph in data]
+data = [sent for paragraph in paragraphs for sent in paragraph if 5 < len(sent.split())]
 # print(data[:3])
 
 # extract features
 feature_ref = []
 for i in tqdm.tqdm(range(2000), desc=f"Generating feature ref for {target}"):
-    feature_ref.append(feature_extractor.process(data[i], False).detach()) # detach to save memory
+    feature_ref.append(
+        feature_extractor.process(data[i], False).detach()
+    )  # detach to save memory
 torch.save(torch.cat(feature_ref, dim=0), f"feature_ref_{target}.pt")

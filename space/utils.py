@@ -23,7 +23,7 @@ def init_random_seeds():
 
 
 class FeatureExtractor:
-    def __init__(self, model, net):
+    def __init__(self, model, net=None):
         self.model = model  # TODO: support different models
         self.net = net
 
@@ -43,8 +43,14 @@ class FeatureExtractor:
         hidden_states_masked = (
             outputs.last_hidden_state * attention_mask
         )  # Ignore the padding tokens
-        if net_required:
+        if net_required and self.net is not None:
             feature = self.net.net(hidden_states_masked)
             return feature
         else:
             return hidden_states_masked
+
+    def process_sents(self, sents, net_required=True):
+        features = []
+        for sent in sents:
+            features.append(self.process(sent, net_required))
+        return torch.cat(features, dim=0)
