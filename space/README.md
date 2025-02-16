@@ -4,5 +4,6 @@ Official Huggingface Space Demo
 
 
 TODO:
-  - Load the MGT and HWT text from HC3
+  - Split the user input txt into sentences
+  - Relative test multiple times
   - Debug the current app

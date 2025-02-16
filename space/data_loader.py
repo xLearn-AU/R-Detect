@@ -61,7 +61,7 @@ def load_HC3():
             and len(item["chatgpt_answers"][0].split()) > 5
         )
     ]
-    print("DEBUG: filtered_ds[0]:", filtered_ds[0])
+    # print("DEBUG: filtered_ds[0]:", filtered_ds[0])
 
     data_new = {"text": [], "label": []}
 
@@ -74,29 +74,26 @@ def load_HC3():
 
 
 def filter_data(data_o, long_train_threshold_low=150, long_train_threshold_high=512):
-    # FIXME: long_train_threshold_low is based on word, but long_train_threshold_high is based on token
     data_HWT = [
         text for text, label in zip(data_o["text"], data_o["label"]) if label == HWT
     ]
     data_MGT = [
         text for text, label in zip(data_o["text"], data_o["label"]) if label == MGT
     ]
-    long_HWT = [x for x in data_HWT if len(x.split()) > long_train_threshold_low]
-    long_MGT = [x for x in data_MGT if len(x.split()) > long_train_threshold_low]
 
     # keep only examples with <= 512 tokens according to mask_tokenizer
     # this step has the extra effect of removing examples with low-quality/garbage content
-    tokenized_data = preproc_tokenizer(long_HWT)
+    tokenized_data = preproc_tokenizer(data_HWT)
     long_HWT = [
         x
-        for x, y in zip(long_HWT, tokenized_data["input_ids"])
-        if len(y) <= long_train_threshold_high
+        for x, y in zip(data_HWT, tokenized_data["input_ids"])
+        if long_train_threshold_low <= len(y) <= long_train_threshold_high
     ]
-    tokenized_data = preproc_tokenizer(long_MGT)
+    tokenized_data = preproc_tokenizer(data_MGT)
     long_MGT = [
         x
-        for x, y in zip(long_MGT, tokenized_data["input_ids"])
-        if len(y) <= long_train_threshold_high
+        for x, y in zip(data_MGT, tokenized_data["input_ids"])
+        if long_train_threshold_low <= len(y) <= long_train_threshold_high
     ]
 
     # print stats about remainining data
@@ -109,8 +106,8 @@ def filter_data(data_o, long_train_threshold_low=150, long_train_threshold_high=
     }
 
     print(len(long_HWT), len(long_MGT))
-    for o, s in zip(long_HWT, long_MGT):  # TODO: do we need to cutoff the longer one?
-        o, s = trim_to_shorter_length(o, s)  # FIXME: it's not corresponds
+    for o, s in zip(long_HWT, long_MGT):
+        o, s = trim_to_shorter_length(o, s)
 
         # add to the data
         data[HWT].append(o)
