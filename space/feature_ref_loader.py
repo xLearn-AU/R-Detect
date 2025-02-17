@@ -19,5 +19,5 @@ class FeatureRefLoader:
 
 
 feature_two_sample_tester_ref = FeatureRefLoader().load("./feature_ref_for_test.pt")
-feature_hwt_ref = FeatureRefLoader().load("./feature_ref_HWT.pt")
-feature_mgt_ref = FeatureRefLoader().load("./feature_ref_MGT.pt")
+feature_hwt_ref = FeatureRefLoader().load("./feature_ref_HWT_1000.pt")
+feature_mgt_ref = FeatureRefLoader().load("./feature_ref_MGT_1000.pt")

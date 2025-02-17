@@ -11,7 +11,7 @@ from data_loader import load_HC3, filter_data
 
 feature_extractor = FeatureExtractor(roberta_model, net)
 
-target = HWT
+target = MGT
 
 # load target data
 data_o = load_HC3()
@@ -28,8 +28,8 @@ data = [sent for paragraph in paragraphs for sent in paragraph if 5 < len(sent.s
 
 # extract features
 feature_ref = []
-for i in tqdm.tqdm(range(2000), desc=f"Generating feature ref for {target}"):
+for i in tqdm.tqdm(range(1000), desc=f"Generating feature ref for {target}"):
     feature_ref.append(
         feature_extractor.process(data[i], False).detach()
     )  # detach to save memory
-torch.save(torch.cat(feature_ref, dim=0), f"feature_ref_{target}.pt")
+torch.save(torch.cat(feature_ref, dim=0), f"feature_ref_{target}_1000.pt")
