@@ -53,4 +53,6 @@ class FeatureExtractor:
         features = []
         for sent in sents:
             features.append(self.process(sent, net_required))
+        if not features:
+            return torch.tensor([])
         return torch.cat(features, dim=0)
