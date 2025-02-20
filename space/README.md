@@ -1,9 +1,13 @@
-# Non-parametric Kernel Relative Test for Machine-generated Text Detection
+---
+title: R Detect
+emoji: 💬
+colorFrom: yellow
+colorTo: purple
+sdk: gradio
+sdk_version: 5.0.1
+app_file: app.py
+pinned: false
+short_description: detect AI from Human
+---
 
-Official Huggingface Space Demo
-
-
-TODO:
-  - Split the user input txt into sentences
-  - Relative test multiple times
-  - Debug the current app
+An example chatbot using [Gradio](https://gradio.app), [`huggingface_hub`](https://huggingface.co/docs/huggingface_hub/v0.22.2/en/index), and the [Hugging Face Inference API](https://huggingface.co/docs/api-inference/index).
