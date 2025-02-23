@@ -2,13 +2,14 @@ import torch
 from torch import nn
 from collections import namedtuple
 import math
-from utils import DEVICE
+from utils import get_device
 from pytorch_transformers.modeling_bert import (
     BertEncoder,
     BertPreTrainedModel,
     BertConfig,
 )
 
+DEVICE = get_device()
 
 class GeLU(nn.Module):
     """Implementation of the gelu activation function.

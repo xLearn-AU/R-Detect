@@ -1,5 +1,7 @@
 import joblib
-from utils import DEVICE
+from utils import get_device
+
+DEVICE = get_device()
 
 
 class RegressionModelLoader:

@@ -2,10 +2,14 @@ import torch
 import random
 import numpy as np
 
-gpu_using = False
-DEVICE = torch.device("cpu")
-if gpu_using:
-    DEVICE = torch.device("cuda:0")
+config = {}
+
+
+def get_device():
+    return (
+        torch.device("cuda:0") if config.get("use_gpu", False) else torch.device("cpu")
+    )
+
 
 HWT = "HWT"
 MGT = "MGT"
@@ -28,6 +32,7 @@ class FeatureExtractor:
         self.net = net
 
     def process(self, text, net_required=True):
+        DEVICE = get_device()
         # Tokenize
         tokens = self.model.tokenizer(
             [text],

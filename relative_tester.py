@@ -5,7 +5,7 @@ from feature_ref_loader import feature_mgt_ref, feature_hwt_ref
 from meta_train import net
 from regression_model_loader import regression_model
 from MMD import MMD_3_Sample_Test
-from utils import DEVICE, FeatureExtractor, HWT, MGT
+from utils import FeatureExtractor, HWT, MGT
 
 
 class RelativeTester:
@@ -72,6 +72,3 @@ class RelativeTester:
         print("DEBUG: power list:", h_u_list)
         # Return the result
         return "Human" if power <= threshold else "AI"
-
-
-relative_tester = RelativeTester()
