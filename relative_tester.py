@@ -1,6 +1,6 @@
 import torch
 import nltk
-from roberta_model_loader import roberta_model
+from roberta_model_loader import RobertaModelLoader
 from feature_ref_loader import feature_mgt_ref, feature_hwt_ref
 from meta_train import net
 from regression_model_loader import regression_model
@@ -11,7 +11,7 @@ from utils import FeatureExtractor, HWT, MGT
 class RelativeTester:
     def __init__(self):
         print("Relative Tester init")
-        self.feature_extractor = FeatureExtractor(roberta_model, net)
+        self.feature_extractor = FeatureExtractor(RobertaModelLoader(), net)
 
     def sents_split(self, text):
         nltk.download("punkt", quiet=True)

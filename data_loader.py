@@ -4,7 +4,7 @@ import datasets
 import re
 import transformers
 import numpy as np
-from utils import MGT, HWT
+from utils import MGT, HWT, config
 
 preproc_tokenizer = transformers.AutoTokenizer.from_pretrained(
     "google-t5/t5-small", model_max_length=512
@@ -49,7 +49,11 @@ def trim_to_shorter_length(texta, textb):
 
 def load_HC3():
 
-    ds = datasets.load_dataset("Hello-SimpleAI/HC3", name="all")
+    ds = (
+        datasets.load_dataset(config["local_model"], name="all")
+        if config["local_model"]
+        else datasets.load_dataset("Hello-SimpleAI/HC3", name="all")
+    )
     ds = ds["train"]  # DatasetDict -> Dataset
     filtered_ds = [
         item

@@ -25,6 +25,14 @@ python main.py
 python app.py
 ```
 
+TODO:
+1. Generate the feature_ref while running main.py
+2. Remove the large file from Github repo
+3. Test on Chinese Network
+4. Test on GPU env
+5. Complete the README.md
+6. Clean the files, code refactor, do we need to remove two sample tester?
+
 <!-- ## Requirements
 
 - An NVIDIA RTX graphics card with 24 GB of memory.

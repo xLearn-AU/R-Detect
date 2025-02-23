@@ -4,11 +4,11 @@ import numpy as np
 import nltk
 
 from utils import DEVICE, FeatureExtractor, HWT, MGT
-from roberta_model_loader import roberta_model
+from roberta_model_loader import RobertaModelLoader
 from meta_train import net
 from data_loader import load_HC3, filter_data
 
-
+roberta_model = RobertaModelLoader()
 feature_extractor = FeatureExtractor(roberta_model, net)
 
 target = MGT

@@ -28,13 +28,13 @@ def init_random_seeds():
 
 class FeatureExtractor:
     def __init__(self, model, net=None):
-        self.model = model  # TODO: support different models
+        self.llm_model = model  # TODO: support different models
         self.net = net
 
     def process(self, text, net_required=True):
         DEVICE = get_device()
         # Tokenize
-        tokens = self.model.tokenizer(
+        tokens = self.llm_model.tokenizer(
             [text],
             padding="max_length",
             truncation=True,
@@ -42,7 +42,7 @@ class FeatureExtractor:
             return_tensors="pt",
         ).to(DEVICE)
         # Predict
-        outputs = self.model.model(**tokens)
+        outputs = self.llm_model.model(**tokens)
         # Get the feature for input text
         attention_mask = tokens["attention_mask"].unsqueeze(-1)
         hidden_states_masked = (

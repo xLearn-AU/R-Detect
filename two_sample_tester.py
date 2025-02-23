@@ -1,5 +1,5 @@
 import torch
-from roberta_model_loader import roberta_model
+from roberta_model_loader import RobertaModelLoader
 from feature_ref_loader import feature_two_sample_tester_ref
 from meta_train import net
 from regression_model_loader import regression_model
@@ -8,11 +8,10 @@ from utils import DEVICE, FeatureExtractor
 
 
 class TwoSampleTester:
-    def __init__(self, net=net, model=roberta_model):
+    def __init__(self):
         print("TwoSample Tester init")
         self.net = net
-        self.model = model
-        self.feature_extractor = FeatureExtractor(model, net)
+        self.feature_extractor = FeatureExtractor(RobertaModelLoader(), net)
 
     def test(self, input_text):
         print("TwoSample Tester test")
@@ -42,6 +41,3 @@ class TwoSampleTester:
             return "Human"
         elif prediction == 1:
             return "AI"
-
-
-two_sample_tester = TwoSampleTester()
