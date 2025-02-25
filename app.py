@@ -170,6 +170,8 @@ with gr.Blocks(css=css) as app:
 if __name__ == "__main__":
     config["use_gpu"] = False
     config["local_model"] = ""
+    config["feature_ref_HWT"] = "./feature_ref_HWT_500.pt"
+    config["feature_ref_MGT"] = "./feature_ref_MGT_500.pt"
     init_random_seeds()
     relative_tester = RelativeTester()
     app.launch()

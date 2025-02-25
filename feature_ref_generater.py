@@ -27,12 +27,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--use_gpu",
         action="store_true",
-        help="Use GPU or not. Default is False",
+        help="Use GPU or not.",
     )
     parser.add_argument(
         "--local_model",
         type=str,
-        help="Use local model or not, you need to download the model first, and set the path. Default is Empty",
+        help="Use local model or not, you need to download the model first, and set the path. Default is Empty. Script will use remote if this param is empty.",
         default="",
     )
     parser.add_argument(

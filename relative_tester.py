@@ -5,15 +5,15 @@ from feature_ref_loader import feature_ref_loader
 from meta_train import net
 from regression_model_loader import regression_model
 from MMD import MMD_3_Sample_Test
-from utils import FeatureExtractor, HWT, MGT
+from utils import FeatureExtractor, HWT, MGT, config
 
 
 class RelativeTester:
     def __init__(self):
         print("Relative Tester init")
         self.feature_extractor = FeatureExtractor(RobertaModelLoader(), net)
-        self.feature_hwt_ref = feature_ref_loader("./feature_ref_HWT.pt")
-        self.feature_mgt_ref = feature_ref_loader("./feature_ref_MGT.pt")
+        self.feature_hwt_ref = feature_ref_loader(config["feature_ref_HWT"])
+        self.feature_mgt_ref = feature_ref_loader(config["feature_ref_MGT"])
 
     def sents_split(self, text):
         nltk.download("punkt", quiet=True)
