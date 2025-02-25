@@ -1,6 +1,6 @@
 import gradio as gr
-from utils import init_random_seeds, config
 
+from utils import init_random_seeds, config
 from relative_tester import RelativeTester
 
 # from two_sample_tester import two_sample_tester
@@ -170,7 +170,6 @@ with gr.Blocks(css=css) as app:
 if __name__ == "__main__":
     config["use_gpu"] = False
     config["local_model"] = ""
-    config["local_dataset"] = ""
     init_random_seeds()
     relative_tester = RelativeTester()
     app.launch()

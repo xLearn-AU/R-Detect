@@ -26,12 +26,13 @@ python app.py
 ```
 
 TODO:
-1. Generate the feature_ref while running main.py
-2. Remove the large file from Github repo
-3. Test on Chinese Network
-4. Test on GPU env
-5. Complete the README.md
-6. Clean the files, code refactor, do we need to remove two sample tester?
+1. Remove the large file from Github repo
+2. Test on Chinese Network
+3. Test on GPU env
+4. Complete the README.md
+5. Clean the files, code refactor, do we need to remove two sample tester?
+6. Fix the warnnings
+7. Test all args and functions
 
 <!-- ## Requirements
 

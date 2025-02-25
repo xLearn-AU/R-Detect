@@ -48,10 +48,15 @@ def trim_to_shorter_length(texta, textb):
 
 
 def load_HC3():
-
+    if config["local_dataset"]:
+        print("Loading local HC3 dataset", config["local_dataset"])
+    else:
+        print("Loading remote HC3 dataset")
     ds = (
-        datasets.load_dataset(config["local_model"], name="all")
-        if config["local_model"]
+        datasets.load_dataset(
+            config["local_dataset"], name="all", trust_remote_code=True
+        )
+        if config["local_dataset"]
         else datasets.load_dataset("Hello-SimpleAI/HC3", name="all")
     )
     ds = ds["train"]  # DatasetDict -> Dataset
@@ -109,7 +114,7 @@ def filter_data(data_o, long_train_threshold_low=150, long_train_threshold_high=
         MGT: [],
     }
 
-    print(len(long_HWT), len(long_MGT))
+    # print(len(long_HWT), len(long_MGT))
     for o, s in zip(long_HWT, long_MGT):
         o, s = trim_to_shorter_length(o, s)
 

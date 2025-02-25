@@ -1,7 +1,7 @@
-from relative_tester import RelativeTester
-from utils import init_random_seeds, config, get_device
 import sys
 import argparse
+from relative_tester import RelativeTester
+from utils import init_random_seeds, config, get_device
 
 
 if __name__ == "__main__":
@@ -25,16 +25,23 @@ if __name__ == "__main__":
         default="",
     )
     parser.add_argument(
-        "--local_dataset",
+        "--feature_ref_HWT",
         type=str,
-        help="Use local dataset or not, you need to download the dataset first, and set the path. Default is Empty",
+        help="The feature ref path of HWT. Default is Empty",
+        default="",
+    )
+    parser.add_argument(
+        "--feature_ref_MGT",
+        type=str,
+        help="The feature ref path of MGT. Default is Empty",
         default="",
     )
     args = parser.parse_args()
     config["test_file"] = args.test_file
     config["use_gpu"] = args.use_gpu
     config["local_model"] = args.local_model
-    config["local_dataset"] = args.local_dataset
+    config["feature_ref_HWT"] = args.feature_ref_HWT
+    config["feature_ref_MGT"] = args.feature_ref_MGT
     print(f"Running on device", get_device())
     with open(config["test_file"], "r") as file:
         content = file.read()

@@ -1,7 +1,7 @@
 import torch
 import nltk
 from roberta_model_loader import RobertaModelLoader
-from feature_ref_loader import feature_mgt_ref, feature_hwt_ref
+from feature_ref_loader import feature_ref_loader
 from meta_train import net
 from regression_model_loader import regression_model
 from MMD import MMD_3_Sample_Test
@@ -12,6 +12,8 @@ class RelativeTester:
     def __init__(self):
         print("Relative Tester init")
         self.feature_extractor = FeatureExtractor(RobertaModelLoader(), net)
+        self.feature_hwt_ref = feature_ref_loader("./feature_ref_HWT.pt")
+        self.feature_mgt_ref = feature_ref_loader("./feature_ref_MGT.pt")
 
     def sents_split(self, text):
         nltk.download("punkt", quiet=True)
@@ -32,8 +34,8 @@ class RelativeTester:
         # Cutoff the features
         min_len = min(
             len(feature_for_sents),
-            len(feature_hwt_ref),
-            len(feature_mgt_ref),
+            len(self.feature_hwt_ref),
+            len(self.feature_mgt_ref),
         )
         # Calculate MMD
         h_u_list = []
@@ -44,11 +46,11 @@ class RelativeTester:
             feature_for_sents_sample = feature_for_sents[
                 torch.randperm(len(feature_for_sents))[:min_len]
             ]
-            feature_hwt_ref_sample = feature_hwt_ref[
-                torch.randperm(len(feature_hwt_ref))[:min_len]
+            feature_hwt_ref_sample = self.feature_hwt_ref[
+                torch.randperm(len(self.feature_hwt_ref))[:min_len]
             ]
-            feature_mgt_ref_sample = feature_mgt_ref[
-                torch.randperm(len(feature_mgt_ref))[:min_len]
+            feature_mgt_ref_sample = self.feature_mgt_ref[
+                torch.randperm(len(self.feature_mgt_ref))[:min_len]
             ]
             h_u, p_value, t, *rest = MMD_3_Sample_Test(
                 net.net(feature_for_sents_sample),

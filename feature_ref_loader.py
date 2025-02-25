@@ -1,6 +1,7 @@
 import torch
 import numpy as np
-from utils import get_device
+
+from utils import get_device, config
 
 DEVICE = get_device()
 
@@ -16,5 +17,3 @@ def feature_ref_loader(feature_ref_file_name, num_ref=5000):
 
 
 feature_two_sample_tester_ref = feature_ref_loader("./feature_ref_for_test.pt")
-feature_hwt_ref = feature_ref_loader("./feature_ref_HWT_1000.pt")
-feature_mgt_ref = feature_ref_loader("./feature_ref_MGT_1000.pt")

@@ -1,4 +1,4 @@
-#/bin/bash
+#!/bin/bash
 
 # If you are in China, you can use set the following mirror link to download the model and dataset
 # export HF_ENDPOINT=https://hf-mirror.com
