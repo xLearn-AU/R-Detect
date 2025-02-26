@@ -73,4 +73,8 @@ class RelativeTester:
         print("DEBUG: power:", power)
         print("DEBUG: power list:", h_u_list)
         # Return the result
-        return "Human" if power <= threshold else "AI"
+        return (
+            "Most likely Human Write"
+            if power <= threshold
+            else "Most likely Machine Generated"
+        )
