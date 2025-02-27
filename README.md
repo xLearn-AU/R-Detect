@@ -1,4 +1,4 @@
-# Non-parametric Kernel Relative Test for Machine-generated Text Detection
+# Deep Kernel Relative Test for\\ Machine-generated Text Detection
 
 ## This is a test only example
 
