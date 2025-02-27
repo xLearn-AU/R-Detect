@@ -1,4 +1,4 @@
-# Deep Kernel Relative Test for\\ Machine-generated Text Detection
+# Deep Kernel Relative Test for\\ Machine-generated Text Detection [Demo](https://huggingface.co/spaces/songyiliao/R-Detect)
 
 ## This is a test only example
 
