@@ -1,6 +1,8 @@
-# Deep Kernel Relative Test for Machine-generated Text Detection [Demo](https://huggingface.co/spaces/songyiliao/R-Detect)
+# Deep Kernel Relative Test for Machine-generated Text Detection 
 
 ## This is a test only example
+
+[Demo](https://huggingface.co/spaces/songyiliao/R-Detect)
 
 Official PyTorch implementation of the ICLR 2025 paper:
 
