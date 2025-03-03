@@ -1,0 +1,6 @@
+.cache
+.DS_Store
+__pycache__
+*.bkp
+datasets
+llm-models
