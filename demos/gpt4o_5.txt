@@ -1,0 +1,17 @@
+"Deductive reasoning involves constructing and establishing strong cause-and-effect relationships. These connections are typically drawn between two facts or between an idea and how it may impact the future (Besnard & Hunter, 2018). In deductive logic, an argument consists of two parts: the premises and the conclusion. A valid argument is one where, if the premises are true, it would be impossible for the conclusion to be false. However, the premises of a valid argument do not necessarily have to be true. The key is that if they were true, they would guarantee the correctness of the conclusion.
+
+For example:
+
+	1.	All metals are heavy.
+	2.	Tin is a metal.
+	3.	Therefore, tin is heavy.
+
+A sound argument, on the other hand, requires both a valid structure and true premises. While valid arguments can be unsound if the premises are false, they still follow a logical structure.
+
+For example:
+
+	1.	All dogs are cats.
+	2.	All mice are dogs.
+	3.	Therefore, all mice are cats.
+
+This is a valid argument because the conclusion logically follows from the premises, but it is not sound because the premises are false. The validity of the argument comes from the logical necessity of the conclusion given the assumptions, even if those assumptions are incorrect. However, the goal of argumentation is to establish the truth of a conclusion. An invalid argument does not meet this goal and cannot be considered sound (Besnard & Hunter, 2018). Therefore, a sound argument must always have both a valid form and true premises. If an argument is invalid, its premises are irrelevant, and there is no argument at all, much less a sound one."
