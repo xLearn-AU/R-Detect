@@ -3,13 +3,10 @@ import gradio as gr
 from utils import init_random_seeds, config
 from relative_tester import RelativeTester
 
-# from two_sample_tester import two_sample_tester
-
 
 def run_test(input_text):
     if not input_text:
         return "Please enter some text to test."
-    # return two_sample_tester.test(input_text.strip())
     return relative_tester.test(input_text.strip())
     return f"Prediction: Human (Mocked for {input_text})"
 

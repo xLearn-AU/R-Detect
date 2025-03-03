@@ -22,7 +22,7 @@ chmod +x ./download_model_and_dataset.sh
 ### 1. Generate the feature ref for test
 ```bash
 python ./feature_ref_generater.py \
-    --target MGT \ # The feature ref type, MGT or HWT
+    --target MGT \ # The feature ref type, MGT or HWT, Required
     --sample_size 1000 \ # The sample size of generated feature ref. Default is 1000, must bigger than 100 and smaller than 30000
     --use_gpu # Use GPU or not.
     --local_model ./llm-models/roberta-base \ # Use local model or not, you need to download the model first, and set the path. Script will use remote if this param is empty.
@@ -45,8 +45,8 @@ python ./main.py \
     --test_file ./demo_text_gpt.txt \ # The file path of the test file. Default is demo_text_gpt.txt
     --use_gpu \ # Use GPU or not.
     --local_model \ # Use local model or not, you need to download the model first, and set the path. Script will use remote if this param is empty.
-    --feature_ref_HWT ./feature_ref_HWT_1000.pt \ # The feature ref path of HWT. Default is Empty
-    --feature_ref_MGT ./feature_ref_MGT_1000.pt \ # The feature ref path of MGT. Default is Empty
+    --feature_ref_HWT ./feature_ref_HWT_1000.pt \ # The feature ref path of HWT. Required
+    --feature_ref_MGT ./feature_ref_MGT_1000.pt \ # The feature ref path of MGT. Required
 ```
 
 
