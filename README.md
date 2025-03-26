@@ -1,6 +1,6 @@
 # Deep Kernel Relative Test for Machine-generated Text Detection 
 
-## This is a test only example
+## This is a test only example. Please refer to train_bkp branch for the full code
 
 Official PyTorch implementation of the ICLR 2025 paper:
 
