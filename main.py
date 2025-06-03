@@ -1,3 +1,6 @@
+# %%
+# # R-Detect Main Script
+# This script is designed to run R-Detect system. You can run each block interactively in Colab.
 import sys
 import argparse
 from relative_tester import RelativeTester
