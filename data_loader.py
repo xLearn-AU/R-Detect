@@ -54,7 +54,7 @@ def load_HC3():
         print("Loading remote HC3 dataset")
     ds = (
         datasets.load_dataset(
-            config["local_dataset"], name="all", trust_remote_code=True
+            config["local_dataset"], name="all"
         )
         if config["local_dataset"]
         else datasets.load_dataset("Hello-SimpleAI/HC3", name="all")
