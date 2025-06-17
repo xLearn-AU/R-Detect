@@ -80,6 +80,6 @@ if __name__ == "__main__":
         )  # detach to save memory
     torch.save(
         torch.cat(feature_ref, dim=0),
-        f"feature_ref_{target}_{config["sample_size"]}.pt",
+        f"feature_ref_{target}_{config['sample_size']}.pt",
     )
     print(f"Feature ref for {target} generated successfully")
