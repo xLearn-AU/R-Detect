@@ -68,7 +68,7 @@ python ./feature_ref_generater.py --target HWT --sample_size 500
 python ./feature_ref_generater.py --target MGT --sample_size 500
 python app.py
 ```
-**This is the same method used to run on Hugging Face.**
+**This is the same method used to run on Hugging Face with using more HC3 data as reference.**
 
 <!-- **TODO:**
 ```
