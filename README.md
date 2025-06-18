@@ -52,8 +52,6 @@ python ./main.py \
 ```
 
 
-**This is the same method used to run on Hugging Face.**
-
 <!-- **TODO:**
 ```
 1. Clean the files, code refactor, do we need to remove two sample tester?
