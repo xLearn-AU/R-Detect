@@ -30,7 +30,7 @@ class RelativeTester:
         feature_for_sents = self.feature_extractor.process_sents(sents, False)
         if len(feature_for_sents) <= 1:
             # print("DEBUG: tooshort")
-            return "Too short to test! Please input more than 2 sentences."
+            return "Too short to test!  Please input at least 2 sentences with more than 5 words."
         # Cutoff the features
         min_len = min(
             len(feature_for_sents),
