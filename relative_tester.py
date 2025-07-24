@@ -32,11 +32,12 @@ class RelativeTester:
             # print("DEBUG: tooshort")
             return "Too short to test!  Please input at least 2 sentences with more than 5 words."
         # Cutoff the features
-        min_len = min(
-            len(feature_for_sents),
-            len(self.feature_hwt_ref),
-            len(self.feature_mgt_ref),
-        )
+        # min_len = min(
+        #     len(feature_for_sents),
+        #     len(self.feature_hwt_ref),
+        #     len(self.feature_mgt_ref),
+        # )
+        min_len = 2
         # Calculate MMD
         h_u_list = []
         p_value_list = []
